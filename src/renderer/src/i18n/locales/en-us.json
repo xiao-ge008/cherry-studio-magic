@@ -2798,7 +2798,7 @@
         "button": "Feedback",
         "title": "Feedback"
       },
-      "label": "About & Feedback",
+      "label": "About",
       "license": {
         "button": "License",
         "title": "License"
@@ -3279,7 +3279,7 @@
         },
         "token_placeholder": "Please enter Siyuan Note Token"
       },
-      "title": "Data Settings",
+      "title": "Data",
       "webdav": {
         "autoSync": {
           "label": "Auto Backup",
@@ -3436,7 +3436,7 @@
         },
         "visible": "Show icons"
       },
-      "title": "Display Settings",
+      "title": "Display",
       "topic": {
         "title": "Topic Settings"
       },
@@ -3464,7 +3464,7 @@
       },
       "emoji_picker": "Emoji Picker",
       "image_upload": "Image Upload",
-      "label": "General Settings",
+      "label": "General",
       "reset": {
         "button": "Reset",
         "title": "Data Reset"
@@ -3835,7 +3835,7 @@
       "title": "Mini Apps Settings",
       "visible": "Visible Mini Apps"
     },
-    "model": "Default Model",
+    "model": "Models",
     "models": {
       "add": {
         "add_model": "Add Model",
@@ -4175,7 +4175,7 @@
       "remove_invalid_keys": "Remove Invalid Keys",
       "search": "Search Providers...",
       "search_placeholder": "Search model id or name",
-      "title": "Model Provider",
+      "title": "Model Providers",
       "vertex_ai": {
         "api_host_help": "The API host for Vertex AI, not recommended to fill in, generally applicable to reverse proxy",
         "documentation": "View official documentation for more configuration details:",
@@ -4263,7 +4263,7 @@
       "selection_assistant_toggle": "Toggle Selection Assistant",
       "show_app": "Show/Hide App",
       "show_settings": "Open Settings",
-      "title": "Keyboard Shortcuts",
+      "title": "Shortcuts",
       "toggle_new_context": "Clear Context",
       "toggle_show_assistants": "Toggle Assistants",
       "toggle_show_topics": "Toggle Topics",
@@ -4324,7 +4324,7 @@
       "preprocess": {
         "provider": "Document Processing Provider",
         "provider_placeholder": "Choose a document processing provider",
-        "title": "Document Processing",
+        "title": "Document Preprocess",
         "tooltip": "In Settings -> Tools, set a document processing service provider. Document processing can effectively improve the retrieval performance of complex format documents and scanned documents."
       },
       "title": "Other Settings",
@@ -4471,6 +4471,9 @@
     "zoom": {
       "reset": "Reset",
       "title": "Page Zoom"
+    },
+    "components": {
+      "title": "Component Settings"
     }
   },
   "title": {
