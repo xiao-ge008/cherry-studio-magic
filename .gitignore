@@ -47,6 +47,8 @@ test-*.html
 .env
 .env.*
 !.env.example
+resources/database/**/*.db
+resources/database/**/*.sqlite
 
 # Local
 local
@@ -81,3 +83,5 @@ test-results
 YOUR_MEMORY_FILE_PATH
 
 .sessions/
+
+!build/**
