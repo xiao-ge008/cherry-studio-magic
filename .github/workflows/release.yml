@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [macos-latest, windows-latest]
       fail-fast: false
 
     steps:
@@ -76,19 +76,7 @@ jobs:
       - name: Install Dependencies
         run: yarn install
 
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get install -y rpm
-          yarn build:linux
-
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_OPTIONS: --max-old-space-size=8192
-          MAIN_VITE_CHERRYAI_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRYAI_CLIENT_SECRET }}
-          MAIN_VITE_MINERU_API_KEY: ${{ secrets.MAIN_VITE_MINERU_API_KEY }}
-          RENDERER_VITE_AIHUBMIX_SECRET: ${{ secrets.RENDERER_VITE_AIHUBMIX_SECRET }}
-          RENDERER_VITE_PPIO_APP_SECRET: ${{ secrets.RENDERER_VITE_PPIO_APP_SECRET }}
+      # Linux build removed per project requirement
 
       - name: Build Mac
         if: matrix.os == 'macos-latest'
