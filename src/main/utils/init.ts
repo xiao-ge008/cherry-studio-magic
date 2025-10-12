@@ -37,19 +37,23 @@ export function initAppDataDir() {
   // Cherry Studio userData path so users keep their previous data when
   // switching to the Magic edition.
   try {
-    const officialName = 'Cherry Studio'
-    let officialPath: string | null = null
-    if (process.platform === 'win32') {
-      officialPath = path.join(app.getPath('appData'), officialName)
-    } else if (process.platform === 'darwin') {
-      officialPath = path.join(app.getPath('home'), 'Library', 'Application Support', officialName)
-    } else {
-      // linux
-      officialPath = path.join(app.getPath('home'), '.config', officialName)
+    const candidates = ['Cherry Studio', 'CherryStudio', 'cherry-studio']
+    let found: string | null = null
+    for (const name of candidates) {
+      let p: string
+      if (process.platform === 'win32') {
+        p = path.join(app.getPath('appData'), name)
+      } else if (process.platform === 'darwin') {
+        p = path.join(app.getPath('home'), 'Library', 'Application Support', name)
+      } else {
+        p = path.join(app.getPath('home'), '.config', name)
+      }
+      if (fs.existsSync(p)) {
+        found = p
+        break
+      }
     }
-    if (officialPath && fs.existsSync(officialPath)) {
-      app.setPath('userData', officialPath)
-    }
+    if (found) app.setPath('userData', found)
   } catch (e) {
     // ignore and keep Electron default
   }
