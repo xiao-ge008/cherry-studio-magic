@@ -1,6 +1,6 @@
 # Cherry Studio Magic
 
-简体中文 | [English](README.md)
+English | [简体中文](README.zh-CN.md)
 
 Cherry Studio Magic is a streamlined fork of the official Cherry Studio focused on built-in, production-ready components and a cleaner developer experience.
 
