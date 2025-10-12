@@ -86,3 +86,5 @@ If native modules rebuild is required, ensure Visual Studio Build Tools with C++
 
 Same license as upstream Cherry Studio.
 
+
+English | [简体中文](README.zh-CN.md)
