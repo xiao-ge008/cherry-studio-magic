@@ -1,6 +1,8 @@
 # Cherry Studio Magic
 
-Cherry Studio Magic is a streamlined fork of the official Cherry Studio focused on built‑in, production‑ready components and a cleaner developer experience.
+简体中文 | [English](README.md)
+
+Cherry Studio Magic is a streamlined fork of the official Cherry Studio focused on built-in, production-ready components and a cleaner developer experience.
 
 - Upstream: https://github.com/CherryHQ/cherry-studio
 - This project: https://github.com/xiao-ge008/cherry-studio-magic
@@ -54,24 +56,18 @@ Safely render HTML blocks with scoped styles in messages. Useful for richly form
 
 ### Install and Run (Development)
 
-```
 yarn install
 yarn dev
-```
 
 ### Build (Production)
 
-```
 yarn build
-```
 
 Artifacts are generated to `out/` (main, preload, renderer).
 
 ### Windows Packaging
 
-```
 yarn build:win:x64
-```
 
 If native modules rebuild is required, ensure Visual Studio Build Tools with C++ workload and Windows SDK are installed.
 
@@ -84,7 +80,13 @@ If native modules rebuild is required, ensure Visual Studio Build Tools with C++
 
 ## License
 
-Same license as upstream Cherry Studio.
+Cherry Studio Magic follows the upstream dual licensing model:
+- Individuals and orgs ≤ 10 people: AGPLv3
+- Orgs > 10 people or need closed distribution (avoid AGPL obligations): Commercial License (contact: bd@cherry-ai.com)
 
+Please review the LICENSE file for full details.
 
-English | [简体中文](README.zh-CN.md)
+## Acknowledgements
+
+Special thanks to the official Cherry Studio team and community. If this project helps you, please also star and support the upstream project:
+- https://github.com/CherryHQ/cherry-studio
