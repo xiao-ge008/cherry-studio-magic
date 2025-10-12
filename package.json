@@ -1,6 +1,6 @@
 {
   "name": "cherry-studio-magic",
-  "version": "1.7.0-magic",
+  "version": "1.7.0-magic.5",
   "private": true,
   "description": "A powerful AI assistant for producer.",
   "main": "./out/main/index.js",
@@ -394,3 +394,4 @@
     ]
   }
 }
+
