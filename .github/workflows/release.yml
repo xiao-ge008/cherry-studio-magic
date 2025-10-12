@@ -49,7 +49,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: macos-latest dependencies fix
         if: matrix.os == 'macos-latest'
@@ -57,7 +57,7 @@ jobs:
           brew install python-setuptools
 
       - name: Install corepack
-        run: corepack enable && corepack prepare yarn@4.6.0 --activate
+        run: corepack enable && corepack prepare yarn@4.9.1 --activate
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
