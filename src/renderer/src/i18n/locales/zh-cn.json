@@ -4653,4 +4653,10 @@
     "show_window": "显示窗口",
     "visualization": "可视化"
   }
+  ,
+  "settings": {
+    "components": {
+      "title": "组件设置"
+    }
+  }
 }

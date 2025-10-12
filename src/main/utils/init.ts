@@ -32,6 +32,27 @@ export function initAppDataDir() {
     app.setPath('userData', path.join(portableDir || app.getPath('exe'), 'data'))
     return
   }
+
+  // Fallback: if no custom config and not portable, prefer the official
+  // Cherry Studio userData path so users keep their previous data when
+  // switching to the Magic edition.
+  try {
+    const officialName = 'Cherry Studio'
+    let officialPath: string | null = null
+    if (process.platform === 'win32') {
+      officialPath = path.join(app.getPath('appData'), officialName)
+    } else if (process.platform === 'darwin') {
+      officialPath = path.join(app.getPath('home'), 'Library', 'Application Support', officialName)
+    } else {
+      // linux
+      officialPath = path.join(app.getPath('home'), '.config', officialName)
+    }
+    if (officialPath && fs.existsSync(officialPath)) {
+      app.setPath('userData', officialPath)
+    }
+  } catch (e) {
+    // ignore and keep Electron default
+  }
 }
 
 function getAppDataPathFromConfig() {

@@ -4653,4 +4653,10 @@
     "show_window": "Show Window",
     "visualization": "Visualization"
   }
+,
+  "settings": {
+    "components": {
+      "title": "Component Settings"
+    }
+  }
 }

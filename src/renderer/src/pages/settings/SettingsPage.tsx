@@ -40,6 +40,7 @@ import SelectionAssistantSettings from './SelectionAssistantSettings/SelectionAs
 import ShortcutSettings from './ShortcutSettings'
 import { ApiServerSettings } from './ToolSettings/ApiServerSettings'
 import WebSearchSettings from './WebSearchSettings'
+import ComponentSettings from './components/ComponentSettings'
 
 const SettingsPage: FC = () => {
   const { pathname } = useLocation()
@@ -67,6 +68,12 @@ const SettingsPage: FC = () => {
             </MenuItem>
           </MenuItemLink>
           <Divider />
+          <MenuItemLink to="/settings/components">
+            <MenuItem className={isRoute('/settings/components')}>
+              <FileCode size={18} />
+              {t('settings.components.title')}
+            </MenuItem>
+          </MenuItemLink>
           <MenuItemLink to="/settings/general">
             <MenuItem className={isRoute('/settings/general')}>
               <Settings2 size={18} />
@@ -170,6 +177,7 @@ const SettingsPage: FC = () => {
             <Route path="shortcut" element={<ShortcutSettings />} />
             <Route path="quickAssistant" element={<QuickAssistantSettings />} />
             <Route path="selectionAssistant" element={<SelectionAssistantSettings />} />
+            <Route path="components" element={<ComponentSettings />} />
             <Route path="data" element={<DataSettings />} />
             <Route path="notes" element={<NotesSettings />} />
             <Route path="about" element={<AboutSettings />} />
