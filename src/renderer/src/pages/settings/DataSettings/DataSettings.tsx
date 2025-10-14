@@ -129,7 +129,7 @@ const DataSettings: FC = () => {
     },
     {
       key: 'agentssubscribe_url',
-      title: t('assistants.presets.settings.title'),
+      title: t('agents.settings.title'),
       icon: <Sparkle size={16} className="icon" />
     }
   ]

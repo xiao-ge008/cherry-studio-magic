@@ -86,6 +86,9 @@ const getTabIcon = (
   switch (tabId) {
     case 'home':
       return <Home size={14} />
+    case 'agents':
+      return <Sparkle size={14} />
+    // Backward compatibility: legacy tab id "store" equals agents
     case 'store':
       return <Sparkle size={14} />
     case 'translate':
@@ -237,17 +240,7 @@ const TabsContainer: React.FC<TabsContainerProps> = ({ children }) => {
             onSortEnd={onSortEnd}
             className="tabs-sortable"
             renderItem={(tab) => (
-              <Tab
-                key={tab.id}
-                active={tab.id === activeTabId}
-                onClick={() => handleTabClick(tab)}
-                onAuxClick={(e) => {
-                  if (e.button === 1 && tab.id !== 'home') {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    closeTab(tab.id)
-                  }
-                }}>
+              <Tab key={tab.id} active={tab.id === activeTabId} onClick={() => handleTabClick(tab)}>
                 <TabHeader>
                   {tab.id && <TabIcon>{getTabIcon(tab.id, minapps, minAppsCache)}</TabIcon>}
                   <TabTitle>{getTabTitle(tab.id)}</TabTitle>

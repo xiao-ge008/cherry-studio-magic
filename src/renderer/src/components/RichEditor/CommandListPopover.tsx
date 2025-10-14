@@ -87,9 +87,6 @@ const CommandListPopover = ({
           return true
 
         case 'Enter':
-          if (event.shiftKey) {
-            return false
-          }
           event.preventDefault()
           if (items[internalSelectedIndex]) {
             selectItem(internalSelectedIndex)

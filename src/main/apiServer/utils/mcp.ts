@@ -1,4 +1,3 @@
-import { CacheService } from '@main/services/CacheService'
 import mcpService from '@main/services/MCPService'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, ListToolsResult } from '@modelcontextprotocol/sdk/types.js'
@@ -8,10 +7,6 @@ import { loggerService } from '../../services/LoggerService'
 import { reduxService } from '../../services/ReduxService'
 
 const logger = loggerService.withContext('MCPApiService')
-
-// Cache configuration
-const MCP_SERVERS_CACHE_KEY = 'api-server:mcp-servers'
-const MCP_SERVERS_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 const cachedServers: Record<string, Server> = {}
 
@@ -38,35 +33,20 @@ async function handleCallToolRequest(request: any, extra: any): Promise<any> {
 }
 
 async function getMcpServerConfigById(id: string): Promise<MCPServer | undefined> {
-  const servers = await getMCPServersFromRedux()
+  const servers = await getServersFromRedux()
   return servers.find((s) => s.id === id || s.name === id)
 }
 
 /**
  * Get servers directly from Redux store
  */
-export async function getMCPServersFromRedux(): Promise<MCPServer[]> {
+async function getServersFromRedux(): Promise<MCPServer[]> {
   try {
-    logger.debug('Getting servers from Redux store')
-
-    // Try to get from cache first (faster)
-    const cachedServers = CacheService.get<MCPServer[]>(MCP_SERVERS_CACHE_KEY)
-    if (cachedServers) {
-      logger.debug('MCP servers resolved from cache', { count: cachedServers.length })
-      return cachedServers
-    }
-
-    // If cache is not available, get fresh data from Redux
     const servers = await reduxService.select<MCPServer[]>('state.mcp.servers')
-    const serverList = servers || []
-
-    // Cache the results
-    CacheService.set(MCP_SERVERS_CACHE_KEY, serverList, MCP_SERVERS_CACHE_TTL)
-
-    logger.debug('Fetched servers from Redux store', { count: serverList.length })
-    return serverList
+    logger.silly(`Fetched ${servers?.length || 0} servers from Redux store`)
+    return servers || []
   } catch (error: any) {
-    logger.error('Failed to get servers from Redux', { error })
+    logger.error('Failed to get servers from Redux:', error)
     return []
   }
 }
@@ -74,7 +54,7 @@ export async function getMCPServersFromRedux(): Promise<MCPServer[]> {
 export async function getMcpServerById(id: string): Promise<Server> {
   const server = cachedServers[id]
   if (!server) {
-    const servers = await getMCPServersFromRedux()
+    const servers = await getServersFromRedux()
     const mcpServer = servers.find((s) => s.id === id || s.name === id)
     if (!mcpServer) {
       throw new Error(`Server not found: ${id}`)
@@ -91,6 +71,6 @@ export async function getMcpServerById(id: string): Promise<Server> {
     cachedServers[id] = newServer
     return newServer
   }
-  logger.debug('Returning cached MCP server', { id, hasHandlers: Boolean(server) })
+  logger.silly('getMcpServer ', { server: server })
   return server
 }

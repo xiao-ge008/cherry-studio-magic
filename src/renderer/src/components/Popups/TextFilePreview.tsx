@@ -55,15 +55,12 @@ const PopupContainer: React.FC<Props> = ({ text, title, extension, resolve }) =>
       footer={null}>
       {extension !== undefined ? (
         <Editor
-          readOnly={true}
+          editable={false}
           expanded={false}
           height="100%"
           style={{ height: '100%' }}
           value={text}
           language={extension}
-          options={{
-            keymap: true
-          }}
         />
       ) : (
         <Text>{text}</Text>

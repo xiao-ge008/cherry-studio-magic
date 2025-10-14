@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import { loggerService } from '@logger'
 import { isLinux, isMac, isPortable, isWin } from '@main/constant'
+// Revert to v1.6.1 integration module name
 import { generateSignature } from '@main/integration/cherryai'
 import anthropicService from '@main/services/AnthropicService'
 import { getBinaryPath, isBinaryExists, runInstallScript } from '@main/utils/process'
@@ -11,27 +12,19 @@ import { handleZoomFactor } from '@main/utils/zoom'
 import { SpanEntity, TokenUsage } from '@mcp-trace/trace-core'
 import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, UpgradeChannel } from '@shared/config/constant'
 import { IpcChannel } from '@shared/IpcChannel'
-import {
-  AgentPersistedMessage,
-  FileMetadata,
-  Notification,
-  OcrProvider,
-  Provider,
-  Shortcut,
-  SupportedOcrFile,
-  ThemeMode
-} from '@types'
+import { FileMetadata, Notification, OcrProvider, Provider, Shortcut, SupportedOcrFile, ThemeMode } from '@types'
 import checkDiskSpace from 'check-disk-space'
 import { BrowserWindow, dialog, ipcMain, ProxyConfig, session, shell, systemPreferences, webContents } from 'electron'
 import fontList from 'font-list'
 
-import { agentMessageRepository } from './services/agents/database'
 import { apiServerService } from './services/ApiServerService'
 import appService from './services/AppService'
 import AppUpdater from './services/AppUpdater'
 import BackupManager from './services/BackupManager'
 import { codeToolsService } from './services/CodeToolsService'
 import { configManager } from './services/ConfigManager'
+import { comfyUIService } from './services/ComfyUIServiceOptimized'
+import { jsComponentService } from './services/JSComponentService'
 import CopilotService from './services/CopilotService'
 import DxtService from './services/DxtService'
 import { ExportService } from './services/ExportService'
@@ -45,7 +38,6 @@ import NotificationService from './services/NotificationService'
 import * as NutstoreService from './services/NutstoreService'
 import ObsidianVaultService from './services/ObsidianVaultService'
 import { ocrService } from './services/ocr/OcrService'
-import OvmsManager from './services/OvmsManager'
 import { proxyManager } from './services/ProxyManager'
 import { pythonService } from './services/PythonService'
 import { FileServiceManager } from './services/remotefile/FileServiceManager'
@@ -67,6 +59,7 @@ import {
 } from './services/SpanCacheService'
 import storeSyncService from './services/StoreSyncService'
 import { themeService } from './services/ThemeService'
+import { TTSService } from './services/TTSService'
 import VertexAIService from './services/VertexAIService'
 import { setOpenLinkExternal } from './services/WebviewService'
 import { windowService } from './services/WindowService'
@@ -92,7 +85,6 @@ const obsidianVaultService = new ObsidianVaultService()
 const vertexAIService = VertexAIService.getInstance()
 const memoryService = MemoryService.getInstance()
 const dxtService = new DxtService()
-const ovmsManager = new OvmsManager()
 
 export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   const appUpdater = new AppUpdater()
@@ -138,11 +130,10 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   })
 
   ipcMain.handle(IpcChannel.App_Reload, () => mainWindow.reload())
-  ipcMain.handle(IpcChannel.App_Quit, () => app.quit())
   ipcMain.handle(IpcChannel.Open_Website, (_, url: string) => shell.openExternal(url))
 
   // Update
-  ipcMain.handle(IpcChannel.App_QuitAndInstall, () => appUpdater.quitAndInstall())
+  ipcMain.handle(IpcChannel.App_ShowUpdateDialog, () => appUpdater.showUpdateDialog(mainWindow))
 
   // language
   ipcMain.handle(IpcChannel.App_SetLanguage, (_, language) => {
@@ -211,27 +202,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       configManager.setTestChannel(channel)
     }
   })
-
-  ipcMain.handle(IpcChannel.AgentMessage_PersistExchange, async (_event, payload) => {
-    try {
-      return await agentMessageRepository.persistExchange(payload)
-    } catch (error) {
-      logger.error('Failed to persist agent session messages', error as Error)
-      throw error
-    }
-  })
-
-  ipcMain.handle(
-    IpcChannel.AgentMessage_GetHistory,
-    async (_event, { sessionId }: { sessionId: string }): Promise<AgentPersistedMessage[]> => {
-      try {
-        return await agentMessageRepository.getSessionHistory(sessionId)
-      } catch (error) {
-        logger.error('Failed to get agent session history', error as Error)
-        throw error
-      }
-    }
-  )
 
   //only for mac
   if (isMac) {
@@ -465,7 +435,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   // system
   ipcMain.handle(IpcChannel.System_GetDeviceType, () => (isMac ? 'mac' : isWin ? 'windows' : 'linux'))
   ipcMain.handle(IpcChannel.System_GetHostname, () => require('os').hostname())
-  ipcMain.handle(IpcChannel.System_GetCpuName, () => require('os').cpus()[0].model)
   ipcMain.handle(IpcChannel.System_ToggleDevTools, (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
     win && win.webContents.toggleDevTools()
@@ -529,7 +498,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.File_ValidateNotesDirectory, fileManager.validateNotesDirectory.bind(fileManager))
   ipcMain.handle(IpcChannel.File_StartWatcher, fileManager.startFileWatcher.bind(fileManager))
   ipcMain.handle(IpcChannel.File_StopWatcher, fileManager.stopFileWatcher.bind(fileManager))
-  ipcMain.handle(IpcChannel.File_ShowInFolder, fileManager.showInFolder.bind(fileManager))
 
   // file service
   ipcMain.handle(IpcChannel.FileService_Upload, async (_, provider: Provider, file: FileMetadata) => {
@@ -745,7 +713,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.App_GetBinaryPath, (_, name: string) => getBinaryPath(name))
   ipcMain.handle(IpcChannel.App_InstallUvBinary, () => runInstallScript('install-uv.js'))
   ipcMain.handle(IpcChannel.App_InstallBunBinary, () => runInstallScript('install-bun.js'))
-  ipcMain.handle(IpcChannel.App_InstallOvmsBinary, () => runInstallScript('install-ovms.js'))
 
   //copilot
   ipcMain.handle(IpcChannel.Copilot_GetAuthMessage, CopilotService.getAuthMessage.bind(CopilotService))
@@ -846,8 +813,67 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       return null
     }
   })
-  // API Server
-  apiServerService.registerIpcHandlers()
+  // API Server removed - using direct IPC communication
+
+  // ComfyUI
+  ipcMain.handle(IpcChannel.ComfyUI_GetComponents, () => comfyUIService.getComponents())
+  ipcMain.handle(IpcChannel.ComfyUI_CreateComponent, (_, config) => comfyUIService.createComponent(config))
+  ipcMain.handle(IpcChannel.ComfyUI_UpdateComponent, (_, id, updates) => comfyUIService.updateComponent(id, updates))
+  ipcMain.handle(IpcChannel.ComfyUI_DeleteComponent, (_, id) => comfyUIService.deleteComponent(id))
+  ipcMain.handle(IpcChannel.ComfyUI_Generate, (_, componentConfig, parameters, clientId) =>
+    comfyUIService.generateImage(componentConfig, parameters, clientId)
+  )
+  ipcMain.handle(IpcChannel.ComfyUI_GenerateByName, (_, componentName, parameters) =>
+    comfyUIService.generateByComponentName(componentName, parameters)
+  )
+  ipcMain.handle(IpcChannel.ComfyUI_AnalyzeWorkflow, (_, name, workflowJson, description, serverUrl, apiKey) =>
+    comfyUIService.analyzeWorkflow(name, workflowJson, description, serverUrl, apiKey)
+  )
+
+  // 为主进程提供组件查找功能
+  ipcMain.handle(IpcChannel.ComfyUI_GetComponentsForMain, async () => {
+    try {
+      // 这里需要从渲染进程获取组件配置
+      // 暂时返回空数组，实际实现需要通过其他方式获取
+      return []
+    } catch (error) {
+      logger.error('Failed to get components for main process', error as Error)
+      return []
+    }
+  })
+
+  // ComfyUI 事件转发
+  comfyUIService.on('progress', (progress) => {
+    const mainWindow = windowService.getMainWindow()
+    if (mainWindow) {
+      mainWindow.webContents.send('comfyui:progress', progress)
+    }
+  })
+
+  comfyUIService.on('completed', (data) => {
+    const mainWindow = windowService.getMainWindow()
+    if (mainWindow) {
+      mainWindow.webContents.send('comfyui:completed', data)
+    }
+  })
+
+  comfyUIService.on('failed', (data) => {
+    const mainWindow = windowService.getMainWindow()
+    if (mainWindow) {
+      mainWindow.webContents.send('comfyui:failed', data)
+    }
+  })
+
+  // JSComponent
+  ipcMain.handle(IpcChannel.JSComponent_GetComponents, () => jsComponentService.getComponents())
+  ipcMain.handle(IpcChannel.JSComponent_CreateComponent, (_, config) => jsComponentService.createComponent(config))
+  ipcMain.handle(IpcChannel.JSComponent_UpdateComponent, (_, id, updates) =>
+    jsComponentService.updateComponent(id, updates)
+  )
+  ipcMain.handle(IpcChannel.JSComponent_DeleteComponent, (_, id) => jsComponentService.deleteComponent(id))
+  ipcMain.handle(IpcChannel.JSComponent_Execute, (_, componentId, parameters) =>
+    jsComponentService.executeComponent(componentId, parameters)
+  )
 
   // Anthropic OAuth
   ipcMain.handle(IpcChannel.Anthropic_StartOAuthFlow, () => anthropicService.startOAuthFlow())
@@ -865,6 +891,13 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.CodeTools_SetCustomTerminalPath, (_, terminalId: string, path: string) =>
     codeToolsService.setCustomTerminalPath(terminalId, path)
   )
+
+  // TTS
+  TTSService.registerIpcHandlers()
+
+  // API Server
+  apiServerService.registerIpcHandlers()
+
   ipcMain.handle(IpcChannel.CodeTools_GetCustomTerminalPath, (_, terminalId: string) =>
     codeToolsService.getCustomTerminalPath(terminalId)
   )
@@ -876,17 +909,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.OCR_ocr, (_, file: SupportedOcrFile, provider: OcrProvider) =>
     ocrService.ocr(file, provider)
   )
-
-  // OVMS
-  ipcMain.handle(IpcChannel.Ovms_AddModel, (_, modelName: string, modelId: string, modelSource: string, task: string) =>
-    ovmsManager.addModel(modelName, modelId, modelSource, task)
-  )
-  ipcMain.handle(IpcChannel.Ovms_StopAddModel, () => ovmsManager.stopAddModel())
-  ipcMain.handle(IpcChannel.Ovms_GetModels, () => ovmsManager.getModels())
-  ipcMain.handle(IpcChannel.Ovms_IsRunning, () => ovmsManager.initializeOvms())
-  ipcMain.handle(IpcChannel.Ovms_GetStatus, () => ovmsManager.getOvmsStatus())
-  ipcMain.handle(IpcChannel.Ovms_RunOVMS, () => ovmsManager.runOvms())
-  ipcMain.handle(IpcChannel.Ovms_StopOVMS, () => ovmsManager.stopOvms())
 
   // CherryAI
   ipcMain.handle(IpcChannel.Cherryai_GetSignature, (_, params) => generateSignature(params))

@@ -18,13 +18,12 @@ export const knowledgeSearchTool = (
 ) => {
   return tool({
     name: 'builtin_knowledge_search',
-    description: `Knowledge base search tool for retrieving information from user's private knowledge base. This searches your local collection of documents, web content, notes, and other materials you have stored.
+    description: `Search the knowledge base for relevant information using pre-analyzed search intent.
 
-This tool has been configured with search parameters based on the conversation context:
-- Prepared queries: ${extractedKeywords.question.map((q) => `"${q}"`).join(', ')}
-- Query rewrite: "${extractedKeywords.rewrite}"
+Pre-extracted search queries: "${extractedKeywords.question.join(', ')}"
+Rewritten query: "${extractedKeywords.rewrite}"
 
-You can use this tool as-is, or provide additionalContext to refine the search focus within the knowledge base.`,
+Call this tool to execute the search. You can optionally provide additional context to refine the search.`,
 
     inputSchema: z.object({
       additionalContext: z

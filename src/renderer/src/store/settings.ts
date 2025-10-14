@@ -16,6 +16,7 @@ import {
   ThemeMode,
   TranslateLanguageCode
 } from '@renderer/types'
+import { ComponentConfig, ComponentSettings, DEFAULT_COMPONENT_SETTINGS } from '@renderer/types/component'
 import { uuid } from '@renderer/utils'
 import { UpgradeChannel } from '@shared/config/constant'
 import { OpenAIVerbosity } from '@types'
@@ -107,6 +108,7 @@ export interface SettingsState {
   gridColumns: number
   gridPopoverTrigger: 'hover' | 'click'
   messageNavigation: 'none' | 'buttons' | 'anchor'
+  ttsServiceUrl: string
   // 数据目录设置
   skipBackupFile: boolean
   // webdav 配置 host, user, pass, path
@@ -158,7 +160,6 @@ export interface SettingsState {
   joplinUrl: string | null
   joplinExportReasoning: boolean
   defaultObsidianVault: string | null
-  /** This state is actaully default assistant preset */
   defaultAgent: string | null
   // 思源笔记配置
   siyuanApiUrl: string | null
@@ -219,6 +220,8 @@ export interface SettingsState {
   // API Server
   apiServer: ApiServerConfig
   showMessageOutline: boolean
+  // Component Settings
+  componentSettings: ComponentSettings
 }
 
 export type MultiModelMessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid'
@@ -296,6 +299,7 @@ export const initialState: SettingsState = {
   gridColumns: 2,
   gridPopoverTrigger: 'click',
   messageNavigation: 'none',
+  ttsServiceUrl: 'http://localhost:9880/',
   skipBackupFile: false,
   webdavHost: '',
   webdavUser: '',
@@ -414,7 +418,9 @@ export const initialState: SettingsState = {
     port: 23333,
     apiKey: `cs-sk-${uuid()}`
   },
-  showMessageOutline: false
+  showMessageOutline: false,
+  // Component Settings
+  componentSettings: DEFAULT_COMPONENT_SETTINGS
 }
 
 const settingsSlice = createSlice({
@@ -737,6 +743,9 @@ const settingsSlice = createSlice({
     setMessageNavigation: (state, action: PayloadAction<'none' | 'buttons' | 'anchor'>) => {
       state.messageNavigation = action.payload
     },
+    setTTSServiceUrl: (state, action: PayloadAction<string>) => {
+      state.ttsServiceUrl = action.payload
+    },
     setDefaultObsidianVault: (state, action: PayloadAction<string>) => {
       state.defaultObsidianVault = action.payload
     },
@@ -852,6 +861,35 @@ const settingsSlice = createSlice({
     },
     setShowMessageOutline: (state, action: PayloadAction<boolean>) => {
       state.showMessageOutline = action.payload
+    },
+    // Component Settings actions
+    setComponentSettings: (state, action: PayloadAction<ComponentSettings>) => {
+      state.componentSettings = action.payload
+    },
+    setComponentEnabled: (state, action: PayloadAction<{ id: string; enabled: boolean }>) => {
+      const { id, enabled } = action.payload
+      if (state.componentSettings.components[id]) {
+        state.componentSettings.components[id].enabled = enabled
+        state.componentSettings.lastUpdated = Date.now()
+      }
+    },
+    updateComponentConfig: (state, action: PayloadAction<{ id: string; config: Partial<ComponentConfig> }>) => {
+      const { id, config } = action.payload
+      if (state.componentSettings.components[id]) {
+        state.componentSettings.components[id] = {
+          ...state.componentSettings.components[id],
+          ...config
+        }
+        state.componentSettings.lastUpdated = Date.now()
+      }
+    },
+    resetComponentConfig: (state, action: PayloadAction<string>) => {
+      const id = action.payload
+      const defaultComponent = DEFAULT_COMPONENT_SETTINGS.components[id]
+      if (defaultComponent) {
+        state.componentSettings.components[id] = { ...defaultComponent }
+        state.componentSettings.lastUpdated = Date.now()
+      }
     }
   }
 })
@@ -947,6 +985,7 @@ export const {
   setJoplinUrl,
   setJoplinExportReasoning,
   setMessageNavigation,
+  setTTSServiceUrl,
   setDefaultObsidianVault,
   setDefaultAgent,
   setSiyuanApiUrl,
@@ -983,7 +1022,12 @@ export const {
   // API Server actions
   setApiServerEnabled,
   setApiServerPort,
-  setApiServerApiKey
+  setApiServerApiKey,
+  // Component Settings actions
+  setComponentSettings,
+  setComponentEnabled,
+  updateComponentConfig,
+  resetComponentConfig
 } = settingsSlice.actions
 
 export default settingsSlice.reducer

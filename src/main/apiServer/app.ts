@@ -3,42 +3,24 @@ import cors from 'cors'
 import express from 'express'
 import { v4 as uuidv4 } from 'uuid'
 
-import { LONG_POLL_TIMEOUT_MS } from './config/timeouts'
 import { authMiddleware } from './middleware/auth'
 import { errorHandler } from './middleware/error'
 import { setupOpenAPIDocumentation } from './middleware/openapi'
-import { agentsRoutes } from './routes/agents'
 import { chatRoutes } from './routes/chat'
 import { mcpRoutes } from './routes/mcp'
-import { messagesProviderRoutes, messagesRoutes } from './routes/messages'
 import { modelsRoutes } from './routes/models'
+import { comfyUIRoutes } from './routes/comfyui'
 
 const logger = loggerService.withContext('ApiServer')
 
-const extendMessagesTimeout: express.RequestHandler = (req, res, next) => {
-  req.setTimeout(LONG_POLL_TIMEOUT_MS)
-  res.setTimeout(LONG_POLL_TIMEOUT_MS)
-  next()
-}
-
 const app = express()
-app.use(
-  express.json({
-    limit: '50mb'
-  })
-)
 
 // Global middleware
 app.use((req, res, next) => {
   const start = Date.now()
   res.on('finish', () => {
     const duration = Date.now() - start
-    logger.info('API request completed', {
-      method: req.method,
-      path: req.path,
-      statusCode: res.statusCode,
-      durationMs: duration
-    })
+    logger.info(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`)
   })
   next()
 })
@@ -120,27 +102,29 @@ app.get('/', (_req, res) => {
     name: 'Cherry Studio API',
     version: '1.0.0',
     endpoints: {
-      health: 'GET /health'
+      health: 'GET /health',
+      models: 'GET /v1/models',
+      chat: 'POST /v1/chat/completions',
+      mcp: 'GET /v1/mcps'
     }
   })
 })
 
-// Setup OpenAPI documentation before protected routes so docs remain public
-setupOpenAPIDocumentation(app)
-
-// Provider-specific messages route requires authentication
-app.use('/:provider/v1/messages', authMiddleware, extendMessagesTimeout, messagesProviderRoutes)
+// ComfyUI routes (no auth required for cache files)
+app.use('/v1/comfyui', comfyUIRoutes)
 
 // API v1 routes with auth
 const apiRouter = express.Router()
 apiRouter.use(authMiddleware)
+apiRouter.use(express.json())
 // Mount routes
 apiRouter.use('/chat', chatRoutes)
 apiRouter.use('/mcps', mcpRoutes)
-apiRouter.use('/messages', extendMessagesTimeout, messagesRoutes)
 apiRouter.use('/models', modelsRoutes)
-apiRouter.use('/agents', agentsRoutes)
 app.use('/v1', apiRouter)
+
+// Setup OpenAPI documentation
+setupOpenAPIDocumentation(app)
 
 // Error handling (must be last)
 app.use(errorHandler)

@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 
 import { loggerService } from '../../services/LoggerService'
-import { mcpApiService } from '../services/mcp'
+import { mcpApiService } from '../services/mcp.js'
 
 const logger = loggerService.withContext('ApiServerMCPRoutes')
 
@@ -43,14 +43,14 @@ const router = express.Router()
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    logger.debug('Listing MCP servers')
+    logger.info('Get all MCP servers request received')
     const servers = await mcpApiService.getAllServers(req)
     return res.json({
       success: true,
       data: servers
     })
   } catch (error: any) {
-    logger.error('Error fetching MCP servers', { error })
+    logger.error('Error fetching MCP servers:', error)
     return res.status(503).json({
       success: false,
       error: {
@@ -103,12 +103,10 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:server_id', async (req: Request, res: Response) => {
   try {
-    logger.debug('Get MCP server info request received', {
-      serverId: req.params.server_id
-    })
+    logger.info('Get MCP server info request received')
     const server = await mcpApiService.getServerInfo(req.params.server_id)
     if (!server) {
-      logger.warn('MCP server not found', { serverId: req.params.server_id })
+      logger.warn('MCP server not found')
       return res.status(404).json({
         success: false,
         error: {
@@ -123,7 +121,7 @@ router.get('/:server_id', async (req: Request, res: Response) => {
       data: server
     })
   } catch (error: any) {
-    logger.error('Error fetching MCP server info', { error, serverId: req.params.server_id })
+    logger.error('Error fetching MCP server info:', error)
     return res.status(503).json({
       success: false,
       error: {
@@ -139,7 +137,7 @@ router.get('/:server_id', async (req: Request, res: Response) => {
 router.all('/:server_id/mcp', async (req: Request, res: Response) => {
   const server = await mcpApiService.getServerById(req.params.server_id)
   if (!server) {
-    logger.warn('MCP server not found', { serverId: req.params.server_id })
+    logger.warn('MCP server not found')
     return res.status(404).json({
       success: false,
       error: {

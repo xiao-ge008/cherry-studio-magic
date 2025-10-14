@@ -47,8 +47,7 @@ export enum ChunkType {
   SEARCH_IN_PROGRESS_UNION = 'search_in_progress_union',
   SEARCH_COMPLETE_UNION = 'search_complete_union',
   VIDEO_SEARCHED = 'video.searched',
-  IMAGE_SEARCHED = 'image.searched',
-  RAW = 'raw'
+  IMAGE_SEARCHED = 'image.searched'
 }
 
 export interface LLMResponseCreatedChunk {
@@ -415,17 +414,6 @@ export interface ImageSearchedChunk {
   metadata: Record<string, any>
 }
 
-export interface RawChunk {
-  /**
-   * The type of the chunk
-   */
-  type: ChunkType.RAW
-
-  content: unknown
-
-  metadata?: Record<string, any>
-}
-
 export type Chunk =
   | BlockCreatedChunk // 消息块创建，无意义
   | BlockInProgressChunk // 消息块进行中，无意义
@@ -462,4 +450,3 @@ export type Chunk =
   | SearchCompleteUnionChunk // 搜索(知识库/互联网)完成
   | VideoSearchedChunk // 知识库检索视频
   | ImageSearchedChunk // 知识库检索图片
-  | RawChunk

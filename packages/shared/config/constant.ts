@@ -205,7 +205,15 @@ export enum UpgradeChannel {
 
 export const defaultTimeout = 10 * 1000 * 60
 
-export const occupiedDirs = ['logs', 'Network', 'Partitions/webview/Network']
+export const occupiedDirs = [
+  'logs',
+  'Network',
+  'Partitions/webview/Network',
+  // Ensure persisted renderer state (e.g. custom agents stored via redux-persist) is copied during migrations
+  'Local Storage',
+  // IndexedDB may store cached data for legacy builds; include it to avoid data loss
+  'IndexedDB'
+]
 
 export const MIN_WINDOW_WIDTH = 960
 export const SECOND_MIN_WINDOW_WIDTH = 520
@@ -217,8 +225,7 @@ export enum codeTools {
   claudeCode = 'claude-code',
   geminiCli = 'gemini-cli',
   openaiCodex = 'openai-codex',
-  iFlowCli = 'iflow-cli',
-  githubCopilotCli = 'github-copilot-cli'
+  iFlowCli = 'iflow-cli'
 }
 
 export enum terminalApps {

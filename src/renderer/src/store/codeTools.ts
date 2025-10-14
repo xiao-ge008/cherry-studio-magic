@@ -26,17 +26,12 @@ export const initialState: CodeToolsState = {
     [codeTools.qwenCode]: null,
     [codeTools.claudeCode]: null,
     [codeTools.geminiCli]: null,
-    [codeTools.openaiCodex]: null,
-    [codeTools.iFlowCli]: null,
-    [codeTools.githubCopilotCli]: null
+    [codeTools.openaiCodex]: null
   },
   environmentVariables: {
     'qwen-code': '',
     'claude-code': '',
-    'gemini-cli': '',
-    'openai-codex': '',
-    'iflow-cli': '',
-    'github-copilot-cli': ''
+    'gemini-cli': ''
   },
   directories: [],
   currentDirectory: '',
@@ -68,10 +63,7 @@ const codeToolsSlice = createSlice({
         state.environmentVariables = {
           'qwen-code': '',
           'claude-code': '',
-          'gemini-cli': '',
-          'openai-codex': '',
-          'iflow-cli': '',
-          'github-copilot-cli': ''
+          'gemini-cli': ''
         }
       }
       state.environmentVariables[state.selectedCliTool] = action.payload

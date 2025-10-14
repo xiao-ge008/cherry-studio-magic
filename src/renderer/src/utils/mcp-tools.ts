@@ -108,12 +108,7 @@ export function openAIToolsToMcpTool(
 export async function callBuiltInTool(toolResponse: MCPToolResponse): Promise<MCPCallToolResponse | undefined> {
   logger.info(`[BuiltIn] Calling Built-in Tool: ${toolResponse.tool.name}`, toolResponse.tool)
 
-  if (
-    toolResponse.tool.name === 'think' &&
-    typeof toolResponse.arguments === 'object' &&
-    toolResponse.arguments !== null &&
-    !Array.isArray(toolResponse.arguments)
-  ) {
+  if (toolResponse.tool.name === 'think') {
     const thought = toolResponse.arguments?.thought
     return {
       isError: false,

@@ -1,6 +1,4 @@
-import { cn } from '@heroui/react'
 import { loggerService } from '@logger'
-import HorizontalScrollContainer from '@renderer/components/HorizontalScrollContainer'
 import Scrollbar from '@renderer/components/Scrollbar'
 import { useMessageEditing } from '@renderer/context/MessageEditingContext'
 import { useAssistant } from '@renderer/hooks/useAssistant'
@@ -187,6 +185,7 @@ const MessageItem: FC<Props> = ({
     <WrapperContainer isMultiSelectMode={isMultiSelectMode}>
       <MessageContainer
         key={message.id}
+        data-message-id={message.id}
         className={classNames({
           message: true,
           'message-assistant': isAssistantMessage,
@@ -227,28 +226,20 @@ const MessageItem: FC<Props> = ({
               </MessageErrorBoundary>
             </MessageContentContainer>
             {showMenubar && (
-              <MessageFooter className="MessageFooter">
-                <HorizontalScrollContainer
-                  classNames={{
-                    content: cn(
-                      'flex-1 items-center justify-between',
-                      isLastMessage && messageStyle === 'plain' ? 'flex-row-reverse' : 'flex-row'
-                    )
-                  }}>
-                  <MessageMenubar
-                    message={message}
-                    assistant={assistant}
-                    model={model}
-                    index={index}
-                    topic={topic}
-                    isLastMessage={isLastMessage}
-                    isAssistantMessage={isAssistantMessage}
-                    isGrouped={isGrouped}
-                    messageContainerRef={messageContainerRef as React.RefObject<HTMLDivElement>}
-                    setModel={setModel}
-                    onUpdateUseful={onUpdateUseful}
-                  />
-                </HorizontalScrollContainer>
+              <MessageFooter className="MessageFooter" $isLastMessage={isLastMessage} $messageStyle={messageStyle}>
+                <MessageMenubar
+                  message={message}
+                  assistant={assistant}
+                  model={model}
+                  index={index}
+                  topic={topic}
+                  isLastMessage={isLastMessage}
+                  isAssistantMessage={isAssistantMessage}
+                  isGrouped={isGrouped}
+                  messageContainerRef={messageContainerRef as React.RefObject<HTMLDivElement>}
+                  setModel={setModel}
+                  onUpdateUseful={onUpdateUseful}
+                />
               </MessageFooter>
             )}
           </>
@@ -264,16 +255,12 @@ const MessageContainer = styled.div`
   width: 100%;
   position: relative;
   transition: background-color 0.3s ease;
-  transform: translateZ(0);
-  will-change: transform;
   padding: 10px;
   padding-bottom: 0;
   border-radius: 10px;
   .menubar {
     opacity: 0;
     transition: opacity 0.2s ease;
-    transform: translateZ(0);
-    will-change: opacity;
     &.show {
       opacity: 1;
     }
@@ -292,8 +279,10 @@ const MessageContentContainer = styled(Scrollbar)`
   overflow-y: auto;
 `
 
-const MessageFooter = styled.div`
+const MessageFooter = styled.div<{ $isLastMessage: boolean; $messageStyle: 'plain' | 'bubble' }>`
   display: flex;
+  flex-direction: ${({ $isLastMessage, $messageStyle }) =>
+    $isLastMessage && $messageStyle === 'plain' ? 'row-reverse' : 'row'};
   align-items: center;
   justify-content: space-between;
   gap: 10px;

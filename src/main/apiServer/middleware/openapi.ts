@@ -197,11 +197,10 @@ export function setupOpenAPIDocumentation(app: Express) {
       })
     )
 
-    logger.info('OpenAPI documentation ready', {
-      docsPath: '/api-docs',
-      specPath: '/api-docs.json'
-    })
+    logger.info('OpenAPI documentation setup complete')
+    logger.info('Documentation available at /api-docs')
+    logger.info('OpenAPI spec available at /api-docs.json')
   } catch (error) {
-    logger.error('Failed to setup OpenAPI documentation', { error })
+    logger.error('Failed to setup OpenAPI documentation:', error as Error)
   }
 }

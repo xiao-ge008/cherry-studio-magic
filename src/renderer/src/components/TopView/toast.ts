@@ -57,26 +57,16 @@ export const loading = (args: RequireSome<AddToastProps, 'promise'>) => {
   return addToast(args)
 }
 
-export const getToastUtilities = (): {
-  getToastQueue: typeof getToastQueue
-  addToast: typeof addToast
-  closeToast: typeof closeToast
-  closeAll: typeof closeAll
-  isToastClosing: typeof isToastClosing
-  error: ReturnType<typeof createToast>
-  success: ReturnType<typeof createToast>
-  warning: ReturnType<typeof createToast>
-  info: ReturnType<typeof createToast>
-  loading: (args: RequireSome<AddToastProps, 'promise'>) => string | null
-} => ({
-  getToastQueue,
-  addToast,
-  closeToast,
-  closeAll,
-  isToastClosing,
-  error,
-  success,
-  warning,
-  info,
-  loading
-})
+export const getToastUtilities = () =>
+  ({
+    getToastQueue,
+    addToast,
+    closeToast,
+    closeAll,
+    isToastClosing,
+    error,
+    success,
+    warning,
+    info,
+    loading
+  }) as const

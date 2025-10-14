@@ -20,8 +20,7 @@ export const CLI_TOOLS = [
   { value: codeTools.qwenCode, label: 'Qwen Code' },
   { value: codeTools.geminiCli, label: 'Gemini CLI' },
   { value: codeTools.openaiCodex, label: 'OpenAI Codex' },
-  { value: codeTools.iFlowCli, label: 'iFlow CLI' },
-  { value: codeTools.githubCopilotCli, label: 'GitHub Copilot CLI' }
+  { value: codeTools.iFlowCli, label: 'iFlow CLI' }
 ]
 
 export const GEMINI_SUPPORTED_PROVIDERS = ['aihubmix', 'dmxapi', 'new-api', 'cherryin']
@@ -44,8 +43,7 @@ export const CLI_TOOL_PROVIDER_MAP: Record<string, (providers: Provider[]) => Pr
   [codeTools.qwenCode]: (providers) => providers.filter((p) => p.type.includes('openai')),
   [codeTools.openaiCodex]: (providers) =>
     providers.filter((p) => p.id === 'openai' || OPENAI_CODEX_SUPPORTED_PROVIDERS.includes(p.id)),
-  [codeTools.iFlowCli]: (providers) => providers.filter((p) => p.type.includes('openai')),
-  [codeTools.githubCopilotCli]: () => []
+  [codeTools.iFlowCli]: (providers) => providers.filter((p) => p.type.includes('openai'))
 }
 
 export const getCodeToolsApiBaseUrl = (model: Model, type: EndpointType) => {
@@ -160,13 +158,13 @@ export const generateToolEnvironment = ({
       env.IFLOW_BASE_URL = baseUrl
       env.IFLOW_MODEL_NAME = model.id
       break
-
-    case codeTools.githubCopilotCli:
-      env.GITHUB_TOKEN = apiKey || ''
-      break
   }
 
   return env
+}
+
+export const getClaudeSupportedProviders = (providers: Provider[]) => {
+  return providers.filter((p) => p.type === 'anthropic' || CLAUDE_SUPPORTED_PROVIDERS.includes(p.id))
 }
 
 export { default } from './CodeToolsPage'

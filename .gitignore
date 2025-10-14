@@ -38,17 +38,11 @@ out
 mcp_server
 stats.html
 .eslintcache
-build
-build-output
-debug-*.html
-test-*.html
 
 # ENV
 .env
 .env.*
 !.env.example
-resources/database/**/*.db
-resources/database/**/*.sqlite
 
 # Local
 local
@@ -68,9 +62,6 @@ CLAUDE.local.md
 coverage
 .vitest-cache
 vitest.config.*.timestamp-*
-__tests__/
-*.test.*
-*.snap
 
 # TypeScript incremental build
 .tsbuildinfo
@@ -78,10 +69,5 @@ __tests__/
 # playwright
 playwright-report
 test-results
-*.http
 
 YOUR_MEMORY_FILE_PATH
-
-.sessions/
-
-!build/**

@@ -5,13 +5,7 @@
  */
 
 import { loggerService } from '@logger'
-import {
-  AgentType,
-  BuiltinMCPServerName,
-  BuiltinMCPServerNames,
-  BuiltinOcrProviderId,
-  ThinkingOption
-} from '@renderer/types'
+import { BuiltinMCPServerName, BuiltinMCPServerNames, BuiltinOcrProviderId, ThinkingOption } from '@renderer/types'
 
 import i18n from './index'
 
@@ -67,7 +61,6 @@ const providerKeyMap = {
   nvidia: 'provider.nvidia',
   o3: 'provider.o3',
   ocoolai: 'provider.ocoolai',
-  ovms: 'provider.ovms',
   ollama: 'provider.ollama',
   openai: 'provider.openai',
   openrouter: 'provider.openrouter',
@@ -133,9 +126,10 @@ export const getRestoreProgressLabel = (key: string): string => {
 }
 
 const titleKeyMap = {
-  // TODO: update i18n key
-  store: 'title.store',
+  agents: 'title.agents',
   apps: 'title.apps',
+  // Backward compatibility: legacy tab id "store" maps to agents title
+  store: 'title.agents',
   code: 'title.code',
   files: 'title.files',
   home: 'title.home',
@@ -166,6 +160,8 @@ export const getThemeModeLabel = (key: string): string => {
 const sidebarIconKeyMap = {
   assistants: 'assistants.title',
   agents: 'agents.title',
+  // Backward compatibility: historical key "store" should map to agents
+  store: 'agents.title',
   paintings: 'paintings.title',
   translate: 'translate.title',
   minapp: 'minapp.title',
@@ -346,13 +342,4 @@ export const getBuiltinOcrProviderLabel = (key: BuiltinOcrProviderId) => {
   if (key === 'tesseract') return 'Tesseract'
   else if (key == 'paddleocr') return 'PaddleOCR'
   else return getLabel(builtinOcrProviderKeyMap, key)
-}
-
-export const getAgentTypeLabel = (key: AgentType) => {
-  switch (key) {
-    case 'claude-code':
-      return 'Claude Code'
-    default:
-      return 'Unknown Type'
-  }
 }

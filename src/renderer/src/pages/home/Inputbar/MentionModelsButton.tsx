@@ -238,7 +238,7 @@ const MentionModelsButton: FC<Props> = ({
       triggerInfoRef.current = triggerInfo
 
       quickPanel.open({
-        title: t('assistants.presets.edit.model.select.title'),
+        title: t('agents.edit.model.select.title'),
         list: modelItems,
         symbol: QuickPanelReservedSymbol.MentionModels,
         multiple: true,
@@ -250,19 +250,21 @@ const MentionModelsButton: FC<Props> = ({
           // ESC关闭时的处理：删除 @ 和搜索文本
           if (action === 'esc') {
             // 只有在输入触发且有模型选择动作时才删除@字符和搜索文本
-            const triggerInfo = ctx?.triggerInfo ?? triggerInfoRef.current
-            if (hasModelActionRef.current && triggerInfo?.type === 'input' && triggerInfo?.position !== undefined) {
+            if (
+              hasModelActionRef.current &&
+              ctx.triggerInfo?.type === 'input' &&
+              ctx.triggerInfo?.position !== undefined
+            ) {
               // 基于当前光标 + 搜索词精确定位并删除，position 仅作兜底
               setText((currentText) => {
                 const textArea = document.querySelector('.inputbar textarea') as HTMLTextAreaElement | null
                 const caret = textArea ? (textArea.selectionStart ?? currentText.length) : currentText.length
-                return removeAtSymbolAndText(currentText, caret, searchText || '', triggerInfo.position!)
+                return removeAtSymbolAndText(currentText, caret, searchText || '', ctx.triggerInfo?.position!)
               })
             }
           }
           // Backspace删除@的情况（delete-symbol）：
           // @ 已经被Backspace自然删除，面板关闭，不需要额外操作
-          triggerInfoRef.current = undefined
         }
       })
     },
@@ -302,7 +304,7 @@ const MentionModelsButton: FC<Props> = ({
   }))
 
   return (
-    <Tooltip placement="top" title={t('assistants.presets.edit.model.select.title')} mouseLeaveDelay={0} arrow>
+    <Tooltip placement="top" title={t('agents.edit.model.select.title')} mouseLeaveDelay={0} arrow>
       <ActionIconButton onClick={handleOpenQuickPanel} active={mentionedModels.length > 0}>
         <AtSign size={18} />
       </ActionIconButton>

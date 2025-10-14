@@ -21,17 +21,16 @@ export const webSearchToolWithPreExtractedKeywords = (
 
   return tool({
     name: 'builtin_web_search',
-    description: `Web search tool for finding current information, news, and real-time data from the internet.
+    description: `Search the web and return citable sources using pre-analyzed search intent.
 
-This tool has been configured with search parameters based on the conversation context:
-- Prepared queries: ${extractedKeywords.question.map((q) => `"${q}"`).join(', ')}${
-      extractedKeywords.links?.length
+Pre-extracted search keywords: "${extractedKeywords.question.join(', ')}"${
+      extractedKeywords.links
         ? `
-- Relevant URLs: ${extractedKeywords.links.join(', ')}`
+Relevant links: ${extractedKeywords.links.join(', ')}`
         : ''
     }
 
-You can use this tool as-is to search with the prepared queries, or provide additionalContext to refine or replace the search terms.`,
+Call this tool to execute the search. You can optionally provide additional context to refine the search.`,
 
     inputSchema: z.object({
       additionalContext: z

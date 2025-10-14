@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI URL请求测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .test-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .test-video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+
+        .loading {
+            display: inline-block;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            color: #1976d2;
+        }
+
+        .error {
+            display: inline-block;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 4px;
+            color: #d32f2f;
+        }
+
+        .url-display {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .dynamic-controls {
+            margin: 20px 0;
+        }
+
+        .dynamic-controls input, .dynamic-controls select {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .dynamic-controls button {
+            padding: 8px 16px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .dynamic-controls button:hover {
+            background: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 ComfyUI URL请求功能测试</h1>
+
+    <div class="test-section">
+        <h2>📝 说明</h2>
+        <p>这个页面用于测试Cherry Studio的ComfyUI URL请求功能。确保Cherry Studio正在运行并且已经配置了相应的ComfyUI组件。</p>
+        <p><strong>注意</strong>：这些URL只在Cherry Studio的Electron环境中有效。</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🖼️ 图片生成测试</h2>
+        <h3>测试1：基础文本到图片（简短格式）</h3>
+        <div class="url-display">comfy-text2image?prompt=beautiful%20landscape&steps=20&cfg=7.5</div>
+        <img id="test-image-1"
+             src="comfy-text2image?prompt=beautiful%20landscape&steps=20&cfg=7.5"
+             alt="AI生成的风景画"
+             class="test-image"
+             onload="showSuccess(this)"
+             onerror="showError(this)" />
+
+        <h3>测试2：verticalPainting组件（完整格式）</h3>
+        <div class="url-display">comfyui-verticalPainting?prompt=masterpiece%2C%20best%20quality%2C%20anime%20style%2C%201girl</div>
+        <img id="test-image-2"
+             src="comfyui-verticalPainting?prompt=masterpiece%2C%20best%20quality%2C%20anime%20style%2C%201girl"
+             alt="二次元立绘"
+             class="test-image"
+             onload="showSuccess(this)"
+             onerror="showError(this)" />
+
+        <h3>测试3：动漫风格人物（简短格式）</h3>
+        <div class="url-display">comfy-anime-portrait?style=cute&character=girl&mood=happy</div>
+        <img id="test-image-3"
+             src="comfy-anime-portrait?style=cute&character=girl&mood=happy"
+             alt="动漫风格人物"
+             class="test-image"
+             onload="showSuccess(this)"
+             onerror="showError(this)" />
+    </div>
+
+    <div class="test-section">
+        <h2>🎬 视频生成测试</h2>
+        <h3>测试3：短视频生成</h3>
+        <div class="url-display">comfy-video-gen?prompt=sunset%20over%20mountains&duration=5&style=cinematic</div>
+        <video id="test-video-1"
+               src="comfy-video-gen?prompt=sunset%20over%20mountains&duration=5&style=cinematic"
+               class="test-video"
+               controls
+               onloadeddata="showSuccess(this)"
+               onerror="showError(this)">
+            您的浏览器不支持视频播放
+        </video>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 文字生成测试</h2>
+        <h3>测试4：故事生成</h3>
+        <div class="url-display">comfy-story-gen?theme=adventure&length=short&protagonist=wizard</div>
+        <iframe id="test-text-1"
+                src="comfy-story-gen?theme=adventure&length=short&protagonist=wizard"
+                width="100%"
+                height="200"
+                style="border: 1px solid #ddd; border-radius: 4px;"
+                onload="showSuccess(this)"
+                onerror="showError(this)">
+        </iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>⚡ 动态生成测试</h2>
+        <div class="dynamic-controls">
+            <input type="text" id="dynamic-prompt" placeholder="输入提示词..." value="cute cat playing">
+            <select id="dynamic-style">
+                <option value="realistic">写实风格</option>
+                <option value="anime">动漫风格</option>
+                <option value="oil-painting">油画风格</option>
+                <option value="watercolor">水彩风格</option>
+            </select>
+            <input type="number" id="dynamic-steps" placeholder="步数" value="25" min="10" max="50">
+            <button onclick="generateDynamicImage()">生成图片</button>
+        </div>
+
+        <div id="dynamic-url" class="url-display" style="display: none;"></div>
+        <img id="dynamic-image" class="test-image" style="display: none;" />
+    </div>
+
+    <div class="test-section">
+        <h2>📊 测试结果</h2>
+        <div id="test-results">
+            <p>等待测试结果...</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {
+            success: 0,
+            failed: 0,
+            total: 0
+        };
+
+        function showSuccess(element) {
+            console.log('✅ 成功加载:', element.src || element.id);
+            testResults.success++;
+            updateTestResults();
+
+            // 添加成功标识
+            const successDiv = document.createElement('div');
+            successDiv.className = 'loading';
+            successDiv.textContent = '✅ 加载成功';
+            element.parentNode.insertBefore(successDiv, element.nextSibling);
+        }
+
+        function showError(element) {
+            console.log('❌ 加载失败:', element.src || element.id);
+            testResults.failed++;
+            updateTestResults();
+
+            // 添加错误标识
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = '❌ 加载失败 - 请检查组件配置';
+            element.parentNode.insertBefore(errorDiv, element.nextSibling);
+        }
+
+        function updateTestResults() {
+            testResults.total = testResults.success + testResults.failed;
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = `
+                <p><strong>测试统计：</strong></p>
+                <p>✅ 成功：${testResults.success}</p>
+                <p>❌ 失败：${testResults.failed}</p>
+                <p>📊 总计：${testResults.total}</p>
+                <p>成功率：${testResults.total > 0 ? Math.round(testResults.success / testResults.total * 100) : 0}%</p>
+            `;
+        }
+
+        function generateDynamicImage() {
+            const prompt = document.getElementById('dynamic-prompt').value;
+            const style = document.getElementById('dynamic-style').value;
+            const steps = document.getElementById('dynamic-steps').value;
+
+            if (!prompt.trim()) {
+                alert('请输入提示词');
+                return;
+            }
+
+            const params = new URLSearchParams({
+                prompt: prompt,
+                style: style,
+                steps: steps,
+                cfg: '7.5'
+            });
+
+            const url = `comfy-dynamic-gen?${params.toString()}`;
+
+            // 显示URL
+            const urlDiv = document.getElementById('dynamic-url');
+            urlDiv.textContent = url;
+            urlDiv.style.display = 'block';
+
+            // 设置图片
+            const img = document.getElementById('dynamic-image');
+            img.src = url;
+            img.style.display = 'block';
+            img.onload = () => showSuccess(img);
+            img.onerror = () => showError(img);
+        }
+
+        // 页面加载完成后开始测试
+        window.onload = function() {
+            console.log('🚀 开始ComfyUI URL请求测试...');
+            updateTestResults();
+        };
+    </script>
+</body>
+</html>

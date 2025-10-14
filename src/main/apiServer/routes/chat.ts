@@ -1,104 +1,14 @@
 import express, { Request, Response } from 'express'
+import OpenAI from 'openai'
 import { ChatCompletionCreateParams } from 'openai/resources'
 
 import { loggerService } from '../../services/LoggerService'
-import {
-  ChatCompletionModelError,
-  chatCompletionService,
-  ChatCompletionValidationError
-} from '../services/chat-completion'
+import { chatCompletionService } from '../services/chat-completion.js'
+import { validateModelId } from '../utils'
 
 const logger = loggerService.withContext('ApiServerChatRoutes')
 
 const router = express.Router()
-
-interface ErrorResponseBody {
-  error: {
-    message: string
-    type: string
-    code: string
-  }
-}
-
-const mapChatCompletionError = (error: unknown): { status: number; body: ErrorResponseBody } => {
-  if (error instanceof ChatCompletionValidationError) {
-    logger.warn('Chat completion validation error', {
-      errors: error.errors
-    })
-
-    return {
-      status: 400,
-      body: {
-        error: {
-          message: error.errors.join('; '),
-          type: 'invalid_request_error',
-          code: 'validation_failed'
-        }
-      }
-    }
-  }
-
-  if (error instanceof ChatCompletionModelError) {
-    logger.warn('Chat completion model error', error.error)
-
-    return {
-      status: 400,
-      body: {
-        error: {
-          message: error.error.message,
-          type: 'invalid_request_error',
-          code: error.error.code
-        }
-      }
-    }
-  }
-
-  if (error instanceof Error) {
-    let statusCode = 500
-    let errorType = 'server_error'
-    let errorCode = 'internal_error'
-
-    if (error.message.includes('API key') || error.message.includes('authentication')) {
-      statusCode = 401
-      errorType = 'authentication_error'
-      errorCode = 'invalid_api_key'
-    } else if (error.message.includes('rate limit') || error.message.includes('quota')) {
-      statusCode = 429
-      errorType = 'rate_limit_error'
-      errorCode = 'rate_limit_exceeded'
-    } else if (error.message.includes('timeout') || error.message.includes('connection')) {
-      statusCode = 502
-      errorType = 'server_error'
-      errorCode = 'upstream_error'
-    }
-
-    logger.error('Chat completion error', { error })
-
-    return {
-      status: statusCode,
-      body: {
-        error: {
-          message: error.message || 'Internal server error',
-          type: errorType,
-          code: errorCode
-        }
-      }
-    }
-  }
-
-  logger.error('Chat completion unknown error', { error })
-
-  return {
-    status: 500,
-    body: {
-      error: {
-        message: 'Internal server error',
-        type: 'server_error',
-        code: 'internal_error'
-      }
-    }
-  }
-}
 
 /**
  * @swagger
@@ -150,7 +60,7 @@ const mapChatCompletionError = (error: unknown): { status: number; body: ErrorRe
  *                       type: integer
  *                     total_tokens:
  *                       type: integer
- *           text/event-stream:
+ *           text/plain:
  *             schema:
  *               type: string
  *               description: Server-sent events stream (when stream=true)
@@ -193,31 +103,72 @@ router.post('/completions', async (req: Request, res: Response) => {
       })
     }
 
-    logger.debug('Chat completion request', {
+    logger.info('Chat completion request:', {
       model: request.model,
       messageCount: request.messages?.length || 0,
       stream: request.stream,
       temperature: request.temperature
     })
 
-    const isStreaming = !!request.stream
+    // Validate request
+    const validation = chatCompletionService.validateRequest(request)
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: {
+          message: validation.errors.join('; '),
+          type: 'invalid_request_error',
+          code: 'validation_failed'
+        }
+      })
+    }
 
-    if (isStreaming) {
-      const { stream } = await chatCompletionService.processStreamingCompletion(request)
+    // Validate model ID and get provider
+    const modelValidation = await validateModelId(request.model)
+    if (!modelValidation.valid) {
+      const error = modelValidation.error!
+      logger.warn(`Model validation failed for '${request.model}':`, error)
+      return res.status(400).json({
+        error: {
+          message: error.message,
+          type: 'invalid_request_error',
+          code: error.code
+        }
+      })
+    }
 
-      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-cache, no-transform')
+    const provider = modelValidation.provider!
+    const modelId = modelValidation.modelId!
+
+    logger.info('Model validation successful:', {
+      provider: provider.id,
+      providerType: provider.type,
+      modelId: modelId,
+      fullModelId: request.model
+    })
+
+    // Create OpenAI client
+    const client = new OpenAI({
+      baseURL: provider.apiHost,
+      apiKey: provider.apiKey
+    })
+    request.model = modelId
+
+    // Handle streaming
+    if (request.stream) {
+      const streamResponse = await client.chat.completions.create(request)
+
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
       res.setHeader('Connection', 'keep-alive')
-      res.setHeader('X-Accel-Buffering', 'no')
-      res.flushHeaders()
 
       try {
-        for await (const chunk of stream) {
+        for await (const chunk of streamResponse as any) {
           res.write(`data: ${JSON.stringify(chunk)}\n\n`)
         }
         res.write('data: [DONE]\n\n')
+        res.end()
       } catch (streamError: any) {
-        logger.error('Stream error', { error: streamError })
+        logger.error('Stream error:', streamError)
         res.write(
           `data: ${JSON.stringify({
             error: {
@@ -227,17 +178,47 @@ router.post('/completions', async (req: Request, res: Response) => {
             }
           })}\n\n`
         )
-      } finally {
         res.end()
       }
       return
     }
 
-    const { response } = await chatCompletionService.processCompletion(request)
+    // Handle non-streaming
+    const response = await client.chat.completions.create(request)
     return res.json(response)
-  } catch (error: unknown) {
-    const { status, body } = mapChatCompletionError(error)
-    return res.status(status).json(body)
+  } catch (error: any) {
+    logger.error('Chat completion error:', error)
+
+    let statusCode = 500
+    let errorType = 'server_error'
+    let errorCode = 'internal_error'
+    let errorMessage = 'Internal server error'
+
+    if (error instanceof Error) {
+      errorMessage = error.message
+
+      if (error.message.includes('API key') || error.message.includes('authentication')) {
+        statusCode = 401
+        errorType = 'authentication_error'
+        errorCode = 'invalid_api_key'
+      } else if (error.message.includes('rate limit') || error.message.includes('quota')) {
+        statusCode = 429
+        errorType = 'rate_limit_error'
+        errorCode = 'rate_limit_exceeded'
+      } else if (error.message.includes('timeout') || error.message.includes('connection')) {
+        statusCode = 502
+        errorType = 'server_error'
+        errorCode = 'upstream_error'
+      }
+    }
+
+    return res.status(statusCode).json({
+      error: {
+        message: errorMessage,
+        type: errorType,
+        code: errorCode
+      }
+    })
   }
 })
 

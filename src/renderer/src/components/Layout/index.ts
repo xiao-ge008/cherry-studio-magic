@@ -81,10 +81,10 @@ const getElementValue = (value?: PxValue) => {
 export const Box = styled.div<BoxProps>`
   width: ${(props) => (props.width || props.w ? getElementValue(props.width ?? props.w) : 'auto')};
   height: ${(props) => (props.height || props.h ? getElementValue(props.height || props.h) : 'auto')};
-  color: ${(props) => props.color || 'default'};
-  background: ${(props) => props.background || 'default'};
+  color: ${(props) => props.color || 'inherit'};
+  background: ${(props) => props.background || 'transparent'};
   flex: ${(props) => props.flex || 'none'};
-  position: ${(props) => props.position || 'default'};
+  position: ${(props) => props.position || 'static'};
   left: ${(props) => getElementValue(props.left) || 'auto'};
   right: ${(props) => getElementValue(props.right) || 'auto'};
   bottom: ${(props) => getElementValue(props.bottom) || 'auto'};
@@ -94,21 +94,17 @@ export const Box = styled.div<BoxProps>`
   border-radius: ${(props) => getElementValue(props.borderRadius) || 0};
   box-sizing: border-box;
   border: ${(props) => props?.border || 'none'};
-  gap: ${(p) => (p.gap ? getElementValue(p.gap) : 0)};
-  margin: ${(props) => (props.m || props.margin ? (props.m ?? props.margin) : 'none')};
-  margin-top: ${(props) => (props.mt || props.marginTop ? getElementValue(props.mt || props.marginTop) : 'default')};
-  margin-bottom: ${(props) =>
-    props.mb || props.marginBottom ? getElementValue(props.mb ?? props.marginBottom) : 'default'};
-  margin-left: ${(props) => (props.ml || props.marginLeft ? getElementValue(props.ml ?? props.marginLeft) : 'default')};
-  margin-right: ${(props) =>
-    props.mr || props.marginRight ? getElementValue(props.mr ?? props.marginRight) : 'default'};
-  padding: ${(props) => (props.p || props.padding ? (props.p ?? props.padding) : 'none')};
-  padding-top: ${(props) => (props.pt || props.paddingTop ? getElementValue(props.pt ?? props.paddingTop) : 'auto')};
+  margin: ${(props) => (props.m || props.margin ? (props.m ?? props.margin) : '0')};
+  margin-top: ${(props) => (props.mt || props.marginTop ? getElementValue(props.mt || props.marginTop) : '0')};
+  margin-bottom: ${(props) => (props.mb || props.marginBottom ? getElementValue(props.mb ?? props.marginBottom) : '0')};
+  margin-left: ${(props) => (props.ml || props.marginLeft ? getElementValue(props.ml ?? props.marginLeft) : '0')};
+  margin-right: ${(props) => (props.mr || props.marginRight ? getElementValue(props.mr ?? props.marginRight) : '0')};
+  padding: ${(props) => (props.p || props.padding ? (props.p ?? props.padding) : '0')};
+  padding-top: ${(props) => (props.pt || props.paddingTop ? getElementValue(props.pt ?? props.paddingTop) : '0')};
   padding-bottom: ${(props) =>
-    props.pb || props.paddingBottom ? getElementValue(props.pb ?? props.paddingBottom) : 'auto'};
-  padding-left: ${(props) => (props.pl || props.paddingLeft ? getElementValue(props.pl ?? props.paddingLeft) : 'auto')};
-  padding-right: ${(props) =>
-    props.pr || props.paddingRight ? getElementValue(props.pr ?? props.paddingRight) : 'auto'};
+    props.pb || props.paddingBottom ? getElementValue(props.pb ?? props.paddingBottom) : '0'};
+  padding-left: ${(props) => (props.pl || props.paddingLeft ? getElementValue(props.pl ?? props.paddingLeft) : '0')};
+  padding-right: ${(props) => (props.pr || props.paddingRight ? getElementValue(props.pr ?? props.paddingRight) : '0')};
 `
 
 export const Stack = styled(Box)<StackProps>`

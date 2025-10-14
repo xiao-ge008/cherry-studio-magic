@@ -260,7 +260,6 @@ export const SYSTEM_MODELS: Record<SystemProviderId | 'defaultModel', Model[]> =
     { id: 'deepseek-r1', name: 'DeepSeek-R1', provider: 'burncloud', group: 'deepseek-ai' },
     { id: 'deepseek-v3', name: 'DeepSeek-V3', provider: 'burncloud', group: 'deepseek-ai' }
   ],
-  ovms: [],
   ollama: [],
   lmstudio: [],
   silicon: [
@@ -430,12 +429,6 @@ export const SYSTEM_MODELS: Record<SystemProviderId | 'defaultModel', Model[]> =
     }
   ],
   anthropic: [
-    {
-      id: 'claude-sonnet-4-5-20250929',
-      provider: 'anthropic',
-      name: 'Claude Sonnet 4.5',
-      group: 'Claude 4.5'
-    },
     {
       id: 'claude-sonnet-4-20250514',
       provider: 'anthropic',
@@ -703,12 +696,6 @@ export const SYSTEM_MODELS: Record<SystemProviderId | 'defaultModel', Model[]> =
       provider: 'zhipu',
       name: 'GLM-4.5-Flash',
       group: 'GLM-4.5'
-    },
-    {
-      id: 'glm-4.6',
-      provider: 'zhipu',
-      name: 'GLM-4.6',
-      group: 'GLM-4.6'
     },
     {
       id: 'glm-4.5',
@@ -1816,20 +1803,6 @@ export const SYSTEM_MODELS: Record<SystemProviderId | 'defaultModel', Model[]> =
       name: 'gemini-2.5-flash',
       provider: 'aionly',
       group: 'gemini'
-    }
-  ],
-  longcat: [
-    {
-      id: 'LongCat-Flash-Chat',
-      name: 'LongCat Flash Chat',
-      provider: 'longcat',
-      group: 'LongCat'
-    },
-    {
-      id: 'LongCat-Flash-Thinking',
-      name: 'LongCat Flash Thinking',
-      provider: 'longcat',
-      group: 'LongCat'
     }
   ]
 }

@@ -7,6 +7,8 @@ import {
 } from '@renderer/types'
 // Import necessary types for blocks and new message structure
 import type { Message as NewMessage, MessageBlock } from '@renderer/types/newMessage'
+import { NotesTreeNode } from '@renderer/types/note'
+import { AudioPlaybackState, ConversationAudioQueue } from '@renderer/types/audioPlayback'
 import { Dexie, type EntityTable } from 'dexie'
 
 import { upgradeToV5, upgradeToV7, upgradeToV8 } from './upgrades'
@@ -23,6 +25,9 @@ export const db = new Dexie('CherryStudio', {
   quick_phrases: EntityTable<QuickPhrase, 'id'>
   message_blocks: EntityTable<MessageBlock, 'id'> // Correct type for message_blocks
   translate_languages: EntityTable<CustomTranslateLanguage, 'id'>
+  notes_tree: EntityTable<{ id: string; tree: NotesTreeNode[] }, 'id'>
+  audio_playback_states: EntityTable<AudioPlaybackState, 'audioId'>
+  conversation_audio_queues: EntityTable<ConversationAudioQueue, 'topicId'>
 }
 
 db.version(1).stores({
@@ -116,7 +121,22 @@ db.version(10).stores({
   translate_history: '&id, sourceText, targetText, sourceLanguage, targetLanguage, createdAt',
   translate_languages: '&id, langCode',
   quick_phrases: 'id',
-  message_blocks: 'id, messageId, file.id'
+  message_blocks: 'id, messageId, file.id',
+  notes_tree: '&id'
+})
+
+db.version(11).stores({
+  files: 'id, name, origin_name, path, size, ext, type, created_at, count',
+  topics: '&id',
+  settings: '&id, value',
+  knowledge_notes: '&id, baseId, type, content, created_at, updated_at',
+  translate_history: '&id, sourceText, targetText, sourceLanguage, targetLanguage, createdAt',
+  translate_languages: '&id, langCode',
+  quick_phrases: 'id',
+  message_blocks: 'id, messageId, file.id',
+  notes_tree: '&id',
+  audio_playback_states: '&audioId, messageId, topicId, createdAt, playbackStatus',
+  conversation_audio_queues: '&topicId, createdAt, updatedAt, queueStatus'
 })
 
 export default db

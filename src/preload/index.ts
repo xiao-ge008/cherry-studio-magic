@@ -51,7 +51,7 @@ const api = {
   setProxy: (proxy: string | undefined, bypassRules?: string) =>
     ipcRenderer.invoke(IpcChannel.App_Proxy, proxy, bypassRules),
   checkForUpdate: () => ipcRenderer.invoke(IpcChannel.App_CheckForUpdate),
-  quitAndInstall: () => ipcRenderer.invoke(IpcChannel.App_QuitAndInstall),
+  showUpdateDialog: () => ipcRenderer.invoke(IpcChannel.App_ShowUpdateDialog),
   setLanguage: (lang: string) => ipcRenderer.invoke(IpcChannel.App_SetLanguage, lang),
   setEnableSpellCheck: (isEnable: boolean) => ipcRenderer.invoke(IpcChannel.App_SetEnableSpellCheck, isEnable),
   setSpellCheckLanguages: (languages: string[]) => ipcRenderer.invoke(IpcChannel.App_SetSpellCheckLanguages, languages),
@@ -95,8 +95,7 @@ const api = {
   },
   system: {
     getDeviceType: () => ipcRenderer.invoke(IpcChannel.System_GetDeviceType),
-    getHostname: () => ipcRenderer.invoke(IpcChannel.System_GetHostname),
-    getCpuName: () => ipcRenderer.invoke(IpcChannel.System_GetCpuName)
+    getHostname: () => ipcRenderer.invoke(IpcChannel.System_GetHostname)
   },
   devTools: {
     toggle: () => ipcRenderer.invoke(IpcChannel.System_ToggleDevTools)
@@ -168,8 +167,7 @@ const api = {
     openPath: (path: string) => ipcRenderer.invoke(IpcChannel.File_OpenPath, path),
     save: (path: string, content: string | NodeJS.ArrayBufferView, options?: any) =>
       ipcRenderer.invoke(IpcChannel.File_Save, path, content, options),
-    selectFolder: (options?: OpenDialogOptions): Promise<string | null> =>
-      ipcRenderer.invoke(IpcChannel.File_SelectFolder, options),
+    selectFolder: (options?: OpenDialogOptions) => ipcRenderer.invoke(IpcChannel.File_SelectFolder, options),
     saveImage: (name: string, data: string) => ipcRenderer.invoke(IpcChannel.File_SaveImage, name, data),
     binaryImage: (fileId: string) => ipcRenderer.invoke(IpcChannel.File_BinaryImage, fileId),
     base64Image: (fileId: string): Promise<{ mime: string; base64: string; data: string }> =>
@@ -200,8 +198,7 @@ const api = {
       }
       ipcRenderer.on('file-change', listener)
       return () => ipcRenderer.off('file-change', listener)
-    },
-    showInFolder: (path: string): Promise<void> => ipcRenderer.invoke(IpcChannel.File_ShowInFolder, path)
+    }
   },
   fs: {
     read: (pathOrUrl: string, encoding?: BufferEncoding) => ipcRenderer.invoke(IpcChannel.Fs_Read, pathOrUrl, encoding),
@@ -223,7 +220,7 @@ const api = {
     create: (base: KnowledgeBaseParams, context?: SpanContext) =>
       tracedInvoke(IpcChannel.KnowledgeBase_Create, context, base),
     reset: (base: KnowledgeBaseParams) => ipcRenderer.invoke(IpcChannel.KnowledgeBase_Reset, base),
-    delete: (id: string) => ipcRenderer.invoke(IpcChannel.KnowledgeBase_Delete, id),
+    delete: (base: KnowledgeBaseParams, id: string) => ipcRenderer.invoke(IpcChannel.KnowledgeBase_Delete, base, id),
     add: ({
       base,
       item,
@@ -287,16 +284,6 @@ const api = {
       ipcRenderer.invoke(IpcChannel.VertexAI_GetAccessToken, params),
     clearAuthCache: (projectId: string, clientEmail?: string) =>
       ipcRenderer.invoke(IpcChannel.VertexAI_ClearAuthCache, projectId, clientEmail)
-  },
-  ovms: {
-    addModel: (modelName: string, modelId: string, modelSource: string, task: string) =>
-      ipcRenderer.invoke(IpcChannel.Ovms_AddModel, modelName, modelId, modelSource, task),
-    stopAddModel: () => ipcRenderer.invoke(IpcChannel.Ovms_StopAddModel),
-    getModels: () => ipcRenderer.invoke(IpcChannel.Ovms_GetModels),
-    isRunning: () => ipcRenderer.invoke(IpcChannel.Ovms_IsRunning),
-    getStatus: () => ipcRenderer.invoke(IpcChannel.Ovms_GetStatus),
-    runOvms: () => ipcRenderer.invoke(IpcChannel.Ovms_RunOVMS),
-    stopOvms: () => ipcRenderer.invoke(IpcChannel.Ovms_StopOVMS)
   },
   config: {
     set: (key: string, value: any, isNotify: boolean = false) =>
@@ -363,7 +350,6 @@ const api = {
   getBinaryPath: (name: string) => ipcRenderer.invoke(IpcChannel.App_GetBinaryPath, name),
   installUVBinary: () => ipcRenderer.invoke(IpcChannel.App_InstallUvBinary),
   installBunBinary: () => ipcRenderer.invoke(IpcChannel.App_InstallBunBinary),
-  installOvmsBinary: () => ipcRenderer.invoke(IpcChannel.App_InstallOvmsBinary),
   protocol: {
     onReceiveData: (callback: (data: { url: string; params: any }) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: { url: string; params: any }) => {
@@ -469,9 +455,84 @@ const api = {
     ocr: (file: SupportedOcrFile, provider: OcrProvider): Promise<OcrResult> =>
       ipcRenderer.invoke(IpcChannel.OCR_ocr, file, provider)
   },
+  tts: {
+    generateAudio: (request: {
+      text: string
+      speaker?: string
+      emotion?: string
+      url: string
+    }): Promise<{
+      success: boolean
+      audioUrl?: string // 本地文件URL
+      audioData?: Buffer // 保留兼容性
+      error?: string
+    }> => ipcRenderer.invoke(IpcChannel.TTS_GenerateAudio, request)
+  },
   cherryai: {
     generateSignature: (params: { method: string; path: string; query: string; body: Record<string, any> }) =>
       ipcRenderer.invoke(IpcChannel.Cherryai_GetSignature, params)
+  },
+
+  comfyui: {
+    getComponents: (): Promise<any[]> => ipcRenderer.invoke(IpcChannel.ComfyUI_GetComponents),
+    createComponent: (config: any): Promise<string> => ipcRenderer.invoke(IpcChannel.ComfyUI_CreateComponent, config),
+    updateComponent: (id: string, updates: any): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.ComfyUI_UpdateComponent, id, updates),
+    deleteComponent: (id: string): Promise<void> => ipcRenderer.invoke(IpcChannel.ComfyUI_DeleteComponent, id),
+    generate: (
+      componentConfig: any,
+      parameters: Record<string, any>,
+      clientId?: string
+    ): Promise<{
+      success: boolean
+      imagePath?: string
+      promptId?: string
+      cached?: boolean
+      error?: string
+    }> => ipcRenderer.invoke(IpcChannel.ComfyUI_Generate, componentConfig, parameters, clientId),
+    generateByName: (
+      componentName: string,
+      parameters: Record<string, any>
+    ): Promise<{
+      success: boolean
+      filePath?: string
+      contentType?: string
+      cached?: boolean
+      error?: string
+    }> => ipcRenderer.invoke(IpcChannel.ComfyUI_GenerateByName, componentName, parameters),
+    analyzeWorkflow: (
+      name: string,
+      workflowJson: string,
+      description?: string,
+      serverUrl?: string,
+      apiKey?: string
+    ): Promise<any> =>
+      ipcRenderer.invoke(IpcChannel.ComfyUI_AnalyzeWorkflow, name, workflowJson, description, serverUrl, apiKey)
+  },
+
+  jscomponent: {
+    getComponents: (): Promise<any[]> => ipcRenderer.invoke(IpcChannel.JSComponent_GetComponents),
+    createComponent: (config: any): Promise<any> => ipcRenderer.invoke(IpcChannel.JSComponent_CreateComponent, config),
+    updateComponent: (id: string, updates: any): Promise<any> =>
+      ipcRenderer.invoke(IpcChannel.JSComponent_UpdateComponent, id, updates),
+    deleteComponent: (id: string): Promise<void> => ipcRenderer.invoke(IpcChannel.JSComponent_DeleteComponent, id),
+    execute: (
+      componentId: string,
+      parameters: Record<string, any>
+    ): Promise<{
+      success: boolean
+      output?: string
+      error?: string
+      executionTime: number
+      type: 'text' | 'html'
+    }> => ipcRenderer.invoke(IpcChannel.JSComponent_Execute, componentId, parameters)
+  },
+  // 通用事件监听器
+  on: (channel: string, listener: (...args: any[]) => void) => {
+    ipcRenderer.on(channel, listener)
+  },
+  off: (channel: string, listener: (...args: any[]) => void) => {
+    ipcRenderer.off(channel, listener)
   },
   windowControls: {
     minimize: (): Promise<void> => ipcRenderer.invoke(IpcChannel.Windows_Minimize),

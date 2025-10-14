@@ -1,189 +1,187 @@
-import mcpService from '@main/services/MCPService'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp'
-import {
-  isJSONRPCRequest,
-  JSONRPCMessage,
-  JSONRPCMessageSchema,
-  MessageExtraInfo
-} from '@modelcontextprotocol/sdk/types'
-import { MCPServer } from '@types'
-import { randomUUID } from 'crypto'
-import { EventEmitter } from 'events'
 import { Request, Response } from 'express'
-import { IncomingMessage, ServerResponse } from 'http'
 
 import { loggerService } from '../../services/LoggerService'
-import { getMcpServerById, getMCPServersFromRedux } from '../utils/mcp'
+import mcpService from '../../services/MCPService'
+import { reduxService } from '../../services/ReduxService'
 
 const logger = loggerService.withContext('MCPApiService')
-const transports: Record<string, StreamableHTTPServerTransport> = {}
 
-interface McpServerDTO {
-  id: MCPServer['id']
-  name: MCPServer['name']
-  type: MCPServer['type']
-  description: MCPServer['description']
-  url: string
+interface MCPServerInfo {
+  id: string
+  name: string
+  description?: string
+  status: 'connected' | 'disconnected' | 'error'
+  capabilities?: {
+    tools?: boolean
+    prompts?: boolean
+    resources?: boolean
+  }
+  version?: string
+  lastConnected?: string
 }
 
-interface McpServersResp {
-  servers: Record<string, McpServerDTO>
-}
-
-/**
- * MCPApiService - API layer for MCP server management
- *
- * This service provides a REST API interface for MCP servers while integrating
- * with the existing application architecture:
- *
- * 1. Uses ReduxService to access the renderer's Redux store directly
- * 2. Syncs changes back to the renderer via Redux actions
- * 3. Leverages existing MCPService for actual server connections
- * 4. Provides session management for API clients
- */
-class MCPApiService extends EventEmitter {
-  private transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID()
-  })
-
-  constructor() {
-    super()
-    this.initMcpServer()
-    logger.debug('MCPApiService initialized')
-  }
-
-  private initMcpServer() {
-    this.transport.onmessage = this.onMessage
-  }
-
-  // get all activated servers
-  async getAllServers(req: Request): Promise<McpServersResp> {
+class MCPApiService {
+  /**
+   * Get all configured MCP servers
+   */
+  async getAllServers(_req: Request): Promise<MCPServerInfo[]> {
     try {
-      const servers = await getMCPServersFromRedux()
-      logger.debug('Returning servers from Redux', { count: servers.length })
-      const resp: McpServersResp = {
-        servers: {}
-      }
-      for (const server of servers) {
-        if (server.isActive) {
-          resp.servers[server.id] = {
+      logger.info('Fetching all MCP servers')
+
+      // Get MCP servers from Redux store
+      const state = await reduxService.select('state')
+      const mcpServers = state?.mcpServers || []
+
+      logger.debug('Retrieved MCP servers from Redux:', {
+        serverCount: mcpServers.length
+      })
+
+      const serverInfos: MCPServerInfo[] = []
+
+      for (const server of mcpServers) {
+        try {
+          // Check server status and capabilities
+          const isConnected = await this.checkServerConnection(server)
+
+          const serverInfo: MCPServerInfo = {
             id: server.id,
             name: server.name,
-            type: 'streamableHttp',
             description: server.description,
-            url: `${req.protocol}://${req.host}/v1/mcps/${server.id}/mcp`
+            status: isConnected ? 'connected' : 'disconnected',
+            capabilities: {
+              tools: true, // Assume all servers support tools
+              prompts: true, // Assume all servers support prompts
+              resources: true // Assume all servers support resources
+            },
+            version: server.version,
+            lastConnected: server.lastConnected
           }
+
+          serverInfos.push(serverInfo)
+        } catch (error: any) {
+          logger.warn(`Error checking server ${server.name}:`, error)
+
+          serverInfos.push({
+            id: server.id,
+            name: server.name,
+            description: server.description,
+            status: 'error',
+            capabilities: {},
+            version: server.version
+          })
         }
       }
-      return resp
+
+      logger.info(`Returning ${serverInfos.length} MCP servers`)
+      return serverInfos
     } catch (error: any) {
-      logger.error('Failed to get all servers', { error })
-      throw new Error('Failed to retrieve servers')
+      logger.error('Error fetching MCP servers:', error)
+      throw new Error(`Failed to fetch MCP servers: ${error.message}`)
     }
   }
 
-  // get server by id
-  async getServerById(id: string): Promise<MCPServer | null> {
+  /**
+   * Get specific MCP server information
+   */
+  async getServerInfo(serverId: string): Promise<MCPServerInfo | null> {
     try {
-      logger.debug('getServerById called', { id })
-      const servers = await getMCPServersFromRedux()
-      const server = servers.find((s) => s.id === id)
-      if (!server) {
-        logger.warn('Server not found', { id })
-        return null
-      }
-      logger.debug('Returning server', { id })
-      return server
-    } catch (error: any) {
-      logger.error('Failed to get server', { id, error })
-      throw new Error('Failed to retrieve server')
-    }
-  }
+      logger.info('Fetching MCP server info:', { serverId })
 
-  async getServerInfo(id: string): Promise<any> {
-    try {
-      const server = await this.getServerById(id)
+      const state = await reduxService.select('state')
+      const mcpServers = state?.mcpServers || []
+
+      const server = mcpServers.find((s: any) => s.id === serverId)
       if (!server) {
-        logger.warn('Server not found while fetching info', { id })
+        logger.warn('MCP server not found:', { serverId })
         return null
       }
 
-      const client = await mcpService.initClient(server)
-      const tools = await client.listTools()
+      const isConnected = await this.checkServerConnection(server)
+
       return {
         id: server.id,
         name: server.name,
-        type: server.type,
         description: server.description,
-        tools: tools.tools
+        status: isConnected ? 'connected' : 'disconnected',
+        capabilities: {
+          tools: true,
+          prompts: true,
+          resources: true
+        },
+        version: server.version,
+        lastConnected: server.lastConnected
       }
     } catch (error: any) {
-      logger.error('Failed to get server info', { id, error })
-      throw new Error('Failed to retrieve server info')
+      logger.error('Error fetching MCP server info:', error)
+      throw new Error(`Failed to fetch MCP server info: ${error.message}`)
     }
   }
 
-  async handleRequest(req: Request, res: Response, server: MCPServer) {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined
-    logger.debug('Handling MCP request', { sessionId, serverId: server.id })
-    let transport: StreamableHTTPServerTransport
-    if (sessionId && transports[sessionId]) {
-      transport = transports[sessionId]
-    } else {
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (sessionId) => {
-          transports[sessionId] = transport
-        }
+  /**
+   * Get MCP server by ID
+   */
+  async getServerById(serverId: string): Promise<any | null> {
+    try {
+      const state = await reduxService.select('state')
+      const mcpServers = state?.mcpServers || []
+
+      return mcpServers.find((s: any) => s.id === serverId) || null
+    } catch (error: any) {
+      logger.error('Error getting MCP server by ID:', error)
+      return null
+    }
+  }
+
+  /**
+   * Handle MCP request forwarding
+   */
+  async handleRequest(req: Request, res: Response, server: any): Promise<void> {
+    try {
+      logger.info('Handling MCP request:', {
+        serverId: server.id,
+        method: req.method,
+        path: req.path
       })
 
-      transport.onclose = () => {
-        logger.info('Transport closed', { sessionId })
-        if (transport.sessionId) {
-          delete transports[transport.sessionId]
-        }
-      }
-      const mcpServer = await getMcpServerById(server.id)
-      if (mcpServer) {
-        await mcpServer.connect(transport)
-      }
-    }
-    const jsonpayload = req.body
-    const messages: JSONRPCMessage[] = []
+      // This is a simplified implementation
+      // In a real implementation, you would forward the request to the actual MCP server
+      // For now, we'll return a basic response
 
-    if (Array.isArray(jsonpayload)) {
-      for (const payload of jsonpayload) {
-        const message = JSONRPCMessageSchema.parse(payload)
-        messages.push(message)
-      }
-    } else {
-      const message = JSONRPCMessageSchema.parse(jsonpayload)
-      messages.push(message)
-    }
-
-    for (const message of messages) {
-      if (isJSONRPCRequest(message)) {
-        if (!message.params) {
-          message.params = {}
+      res.json({
+        success: true,
+        message: 'MCP request forwarding not yet implemented',
+        server: {
+          id: server.id,
+          name: server.name
         }
-        if (!message.params._meta) {
-          message.params._meta = {}
+      })
+    } catch (error: any) {
+      logger.error('Error handling MCP request:', error)
+      res.status(500).json({
+        success: false,
+        error: {
+          message: `Failed to handle MCP request: ${error.message}`,
+          type: 'server_error',
+          code: 'mcp_request_failed'
         }
-        message.params._meta.serverId = server.id
-      }
+      })
     }
-
-    logger.debug('Dispatching MCP request', {
-      sessionId: transport.sessionId ?? sessionId,
-      messageCount: messages.length
-    })
-    await transport.handleRequest(req as IncomingMessage, res as ServerResponse, messages)
   }
 
-  private onMessage(message: JSONRPCMessage, extra?: MessageExtraInfo) {
-    logger.debug('Received MCP message', { message, extra })
-    // Handle message here
+  /**
+   * Check if MCP server is connected
+   */
+  private async checkServerConnection(server: any): Promise<boolean> {
+    try {
+      // Use the existing MCP service to check connectivity
+      const result = await mcpService.checkMcpConnectivity(null as any, server)
+      return result || false
+    } catch (error: any) {
+      logger.debug('Server connection check failed:', { serverId: server.id, error: error.message })
+      return false
+    }
   }
 }
 
+// Export singleton instance
 export const mcpApiService = new MCPApiService()

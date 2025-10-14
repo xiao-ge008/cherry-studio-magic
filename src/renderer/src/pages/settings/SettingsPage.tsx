@@ -26,6 +26,12 @@ import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 
 import AboutSettings from './AboutSettings'
+import ComponentSettings from './ComponentSettings/ComponentSettings'
+import ComponentEditPage from './ComponentSettings/ComponentEditPage'
+import ComfyUICreator from './ComponentSettings/ComfyUICreator'
+import ComfyUIEditPage from './ComponentSettings/ComfyUIEditPage'
+import JSComponentSettings from './ComponentSettings/JSComponentSettings'
+import ComfyUIConfigurePage from './ComponentSettings/ComfyUIConfigurePage'
 import DataSettings from './DataSettings/DataSettings'
 import DisplaySettings from './DisplaySettings/DisplaySettings'
 import DocProcessSettings from './DocProcessSettings'
@@ -40,7 +46,6 @@ import SelectionAssistantSettings from './SelectionAssistantSettings/SelectionAs
 import ShortcutSettings from './ShortcutSettings'
 import { ApiServerSettings } from './ToolSettings/ApiServerSettings'
 import WebSearchSettings from './WebSearchSettings'
-import ComponentSettings from './components/ComponentSettings'
 
 const SettingsPage: FC = () => {
   const { pathname } = useLocation()
@@ -68,12 +73,6 @@ const SettingsPage: FC = () => {
             </MenuItem>
           </MenuItemLink>
           <Divider />
-          <MenuItemLink to="/settings/components">
-            <MenuItem className={isRoute('/settings/components')}>
-              <FileCode size={18} />
-              {t('settings.components.title')}
-            </MenuItem>
-          </MenuItemLink>
           <MenuItemLink to="/settings/general">
             <MenuItem className={isRoute('/settings/general')}>
               <Settings2 size={18} />
@@ -90,6 +89,12 @@ const SettingsPage: FC = () => {
             <MenuItem className={isRoute('/settings/data')}>
               <HardDrive size={18} />
               {t('settings.data.title')}
+            </MenuItem>
+          </MenuItemLink>
+          <MenuItemLink to="/settings/components">
+            <MenuItem className={isRoute('/settings/components')}>
+              <Package size={18} />
+              {t('settings.components.title')}
             </MenuItem>
           </MenuItemLink>
           <Divider />
@@ -177,8 +182,14 @@ const SettingsPage: FC = () => {
             <Route path="shortcut" element={<ShortcutSettings />} />
             <Route path="quickAssistant" element={<QuickAssistantSettings />} />
             <Route path="selectionAssistant" element={<SelectionAssistantSettings />} />
-            <Route path="components" element={<ComponentSettings />} />
             <Route path="data" element={<DataSettings />} />
+            <Route path="components" element={<ComponentSettings />} />
+            <Route path="components/edit/:componentId" element={<ComponentEditPage />} />
+            <Route path="components/comfyui/create" element={<ComfyUICreator />} />
+            <Route path="components/comfyui/edit/:componentId" element={<ComfyUIEditPage />} />
+            <Route path="components/comfyui/configure/:componentId" element={<ComfyUIConfigurePage />} />
+            <Route path="components/js/create" element={<JSComponentSettings />} />
+            <Route path="components/js/edit/:componentId" element={<JSComponentSettings />} />
             <Route path="notes" element={<NotesSettings />} />
             <Route path="about" element={<AboutSettings />} />
           </Routes>

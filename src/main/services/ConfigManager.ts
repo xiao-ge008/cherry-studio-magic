@@ -1,8 +1,8 @@
 import { defaultLanguage, UpgradeChannel, ZOOM_SHORTCUTS } from '@shared/config/constant'
+import { v4 as uuidv4 } from 'uuid'
 import { LanguageVarious, Shortcut, ThemeMode } from '@types'
 import { app } from 'electron'
 import Store from 'electron-store'
-import { v4 as uuidv4 } from 'uuid'
 
 import { locales } from '../utils/locales'
 
@@ -245,12 +245,10 @@ export class ConfigManager {
 
   getClientId(): string {
     let clientId = this.get<string>(ConfigKeys.ClientId)
-
     if (!clientId) {
       clientId = uuidv4()
       this.set(ConfigKeys.ClientId, clientId)
     }
-
     return clientId
   }
 

@@ -14,21 +14,13 @@ vi.mock('@logger', async () => {
   }
 })
 
-vi.mock('axios', () => {
-  const defaultAxiosMock = {
+vi.mock('axios', () => ({
+  default: {
     get: vi.fn().mockResolvedValue({ data: {} }), // Mocking axios GET request
     post: vi.fn().mockResolvedValue({ data: {} }) // Mocking axios POST request
     // You can add other axios methods like put, delete etc. as needed
   }
-
-  const isAxiosError = (error: unknown): error is { isAxiosError?: boolean } =>
-    Boolean((error as { isAxiosError?: boolean } | undefined)?.isAxiosError)
-
-  return {
-    default: defaultAxiosMock,
-    isAxiosError
-  }
-})
+}))
 
 vi.stubGlobal('electron', {
   ipcRenderer: {

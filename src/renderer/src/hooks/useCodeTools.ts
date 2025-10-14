@@ -108,11 +108,7 @@ export const useCodeTools = () => {
   const environmentVariables = codeToolsState?.environmentVariables?.[codeToolsState.selectedCliTool] || ''
 
   // 检查是否可以启动（所有必需字段都已填写）
-  const canLaunch = Boolean(
-    codeToolsState.selectedCliTool &&
-      codeToolsState.currentDirectory &&
-      (codeToolsState.selectedCliTool === codeTools.githubCopilotCli || selectedModel)
-  )
+  const canLaunch = Boolean(codeToolsState.selectedCliTool && selectedModel && codeToolsState.currentDirectory)
 
   return {
     // 状态

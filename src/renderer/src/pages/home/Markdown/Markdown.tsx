@@ -27,13 +27,21 @@ import { Pluggable } from 'unified'
 import CodeBlock from './CodeBlock'
 import Link from './Link'
 import MarkdownSvgRenderer from './MarkdownSvgRenderer'
+import MarkdownAudioRenderer from './MarkdownAudioRenderer'
+import MarkdownAudioMessage from './MarkdownAudioMessage'
+// import MarkdownAudioMessage from './MarkdownAudioMessage'
+import OptionsComponent from './OptionsComponent'
+import ComfyUIComponent from './ComfyUIComponent'
+import { JSComponent } from './JSComponent'
+import { componentService } from '@renderer/services/ComponentService'
 import rehypeHeadingIds from './plugins/rehypeHeadingIds'
 import rehypeScalableSvg from './plugins/rehypeScalableSvg'
 import remarkDisableConstructs from './plugins/remarkDisableConstructs'
+import remarkOptionsPlugin from './plugins/remarkOptionsPlugin'
 import Table from './Table'
 
 const ALLOWED_ELEMENTS =
-  /<(style|p|div|span|b|i|strong|em|ul|ol|li|table|tr|td|th|thead|tbody|h[1-6]|blockquote|pre|code|br|hr|svg|path|circle|rect|line|polyline|polygon|text|g|defs|title|desc|tspan|sub|sup|details|summary)/i
+  /<(style|audio-message|js-component|audio|source|p|div|span|b|i|strong|em|ul|ol|li|table|tr|td|th|thead|tbody|h[1-6]|blockquote|pre|code|br|hr|svg|path|circle|rect|line|polyline|polygon|text|g|defs|title|desc|tspan|sub|sup|details|summary|comfyui-[a-zA-Z0-9_-]+|js-[a-zA-Z0-9_-]+)/i
 const DISALLOWED_ELEMENTS = ['iframe', 'script']
 
 interface Props {
@@ -94,7 +102,8 @@ const Markdown: FC<Props> = ({ block, postProcess }) => {
       [remarkGfm, { singleTilde: false }] as Pluggable,
       [remarkAlert] as Pluggable,
       remarkCjkFriendly,
-      remarkDisableConstructs(['codeIndented'])
+      remarkDisableConstructs(['codeIndented']),
+      remarkOptionsPlugin
     ]
     if (mathEngine !== 'none') {
       plugins.push([remarkMath, { singleDollarTextMath: mathEnableSingleDollar }])
@@ -123,21 +132,90 @@ const Markdown: FC<Props> = ({ block, postProcess }) => {
     return plugins
   }, [mathEngine, messageContent, block.id])
 
+  // 获取ComfyUI组件列表，使用独立的useMemo避免循环依赖
+  const comfyUIComponents = useMemo(() => {
+    try {
+      return componentService.getComfyUIComponents()
+    } catch (error) {
+      console.warn('Failed to get ComfyUI components:', error)
+      return []
+    }
+  }, [])
+
   const components = useMemo(() => {
-    return {
+    // 获取JS组件列表
+    const jsComponents = componentService.getJSComponents()
+
+    const baseComponents = {
       a: (props: any) => <Link {...props} />,
       code: (props: any) => <CodeBlock {...props} blockId={block.id} />,
       table: (props: any) => <Table {...props} blockId={block.id} />,
       img: (props: any) => <ImageViewer style={{ maxWidth: 500, maxHeight: 500 }} {...props} />,
+      audio: (props: any) => <MarkdownAudioRenderer {...props} />,
+      'audio-message': (props: any) => <MarkdownAudioMessage {...props} />,
       pre: (props: any) => <pre style={{ overflow: 'visible' }} {...props} />,
       p: (props) => {
         const hasImage = props?.node?.children?.some((child: any) => child.tagName === 'img')
-        if (hasImage) return <div {...props} />
+        const hasOptionsComponent = props?.node?.children?.some(
+          (child: any) =>
+            child.type === 'element' &&
+            child.tagName === 'div' &&
+            child.properties?.className?.includes('markdown-options')
+        )
+
+        if (hasImage || hasOptionsComponent) return <div {...props} />
         return <p {...props} />
       },
-      svg: MarkdownSvgRenderer
+      svg: MarkdownSvgRenderer,
+      div: (props: any) => {
+        // 检查是否是选项组件
+        if (props.className === 'markdown-options' && props['data-options']) {
+          return <OptionsComponent {...props} />
+        }
+        return <div {...props} />
+      }
     } as Partial<Components>
-  }, [block.id])
+
+    // 动态添加ComfyUI组件
+    comfyUIComponents.forEach((component) => {
+      const tagName = `comfyui-${component.componentName}`
+      baseComponents[tagName] = (props: any) => {
+        // 生成唯一key，确保多个相同组件能独立渲染
+        const uniqueKey = `${component.componentName}-${JSON.stringify(props)}-${Math.random().toString(36).substr(2, 9)}`
+        return <ComfyUIComponent key={uniqueKey} componentName={component.componentName} {...props} />
+      }
+
+      // 同时注册小写版本以确保兼容性
+      const lowerTagName = `comfyui-${component.componentName.toLowerCase()}`
+      if (lowerTagName !== tagName) {
+        baseComponents[lowerTagName] = (props: any) => {
+          const uniqueKey = `${component.componentName}-${JSON.stringify(props)}-${Math.random().toString(36).substr(2, 9)}`
+          return <ComfyUIComponent key={uniqueKey} componentName={component.componentName} {...props} />
+        }
+      }
+    })
+
+    // 动态添加JS组件
+    jsComponents.forEach((component) => {
+      const tagName = `js-${component.componentName}`
+      baseComponents[tagName] = (props: any) => {
+        // 生成唯一key，确保多个相同组件能独立渲染
+        const uniqueKey = `${component.componentName}-${JSON.stringify(props)}-${Math.random().toString(36).substr(2, 9)}`
+        return <JSComponent key={uniqueKey} name={component.componentName} {...props} />
+      }
+
+      // 同时注册小写版本以确保兼容性
+      const lowerTagName = `js-${component.componentName.toLowerCase()}`
+      if (lowerTagName !== tagName) {
+        baseComponents[lowerTagName] = (props: any) => {
+          const uniqueKey = `${component.componentName}-${JSON.stringify(props)}-${Math.random().toString(36).substr(2, 9)}`
+          return <JSComponent key={uniqueKey} name={component.componentName} {...props} />
+        }
+      }
+    })
+
+    return baseComponents
+  }, [block.id, comfyUIComponents])
 
   if (/<style\b[^>]*>/i.test(messageContent)) {
     components.style = MarkdownShadowDOMRenderer as any
@@ -145,6 +223,18 @@ const Markdown: FC<Props> = ({ block, postProcess }) => {
 
   const urlTransform = useCallback((value: string) => {
     if (value.startsWith('data:image/png') || value.startsWith('data:image/jpeg')) return value
+
+    // 转换comfyui URL为自定义协议
+    if (value.includes('comfyui-') || value.includes('comfy-')) {
+      // 提取组件名和参数
+      const match = value.match(/comfy(?:ui)?-([a-zA-Z0-9_-]+)(\?.*)?$/)
+      if (match) {
+        const componentName = match[1]
+        const queryString = match[2] || ''
+        return `comfyui://${componentName}${queryString}`
+      }
+    }
+
     return defaultUrlTransform(value)
   }, [])
 

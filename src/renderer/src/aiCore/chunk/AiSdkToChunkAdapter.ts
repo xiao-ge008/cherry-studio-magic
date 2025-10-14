@@ -7,7 +7,6 @@ import { loggerService } from '@logger'
 import { AISDKWebSearchResult, MCPTool, WebSearchResults, WebSearchSource } from '@renderer/types'
 import { Chunk, ChunkType } from '@renderer/types/chunk'
 import { convertLinks, flushLinkConverterBuffer } from '@renderer/utils/linkConverter'
-import type { ClaudeCodeRawValue } from '@shared/agents/claudecode/types'
 import type { TextStreamPart, ToolSet } from 'ai'
 
 import { ToolCallChunkHandler } from './handleToolCallChunk'
@@ -23,32 +22,16 @@ export class AiSdkToChunkAdapter {
   private accumulate: boolean | undefined
   private isFirstChunk = true
   private enableWebSearch: boolean = false
-  private onSessionUpdate?: (sessionId: string) => void
-  private responseStartTimestamp: number | null = null
-  private firstTokenTimestamp: number | null = null
 
   constructor(
     private onChunk: (chunk: Chunk) => void,
     mcpTools: MCPTool[] = [],
     accumulate?: boolean,
-    enableWebSearch?: boolean,
-    onSessionUpdate?: (sessionId: string) => void
+    enableWebSearch?: boolean
   ) {
     this.toolCallHandler = new ToolCallChunkHandler(onChunk, mcpTools)
     this.accumulate = accumulate
     this.enableWebSearch = enableWebSearch || false
-    this.onSessionUpdate = onSessionUpdate
-  }
-
-  private markFirstTokenIfNeeded() {
-    if (this.firstTokenTimestamp === null && this.responseStartTimestamp !== null) {
-      this.firstTokenTimestamp = Date.now()
-    }
-  }
-
-  private resetTimingState() {
-    this.responseStartTimestamp = null
-    this.firstTokenTimestamp = null
   }
 
   /**
@@ -78,8 +61,6 @@ export class AiSdkToChunkAdapter {
       webSearchResults: [],
       reasoningId: ''
     }
-    this.resetTimingState()
-    this.responseStartTimestamp = Date.now()
     // Reset link converter state at the start of stream
     this.isFirstChunk = true
 
@@ -92,7 +73,6 @@ export class AiSdkToChunkAdapter {
           if (this.enableWebSearch) {
             const remainingText = flushLinkConverterBuffer()
             if (remainingText) {
-              this.markFirstTokenIfNeeded()
               this.onChunk({
                 type: ChunkType.TEXT_DELTA,
                 text: remainingText
@@ -107,7 +87,6 @@ export class AiSdkToChunkAdapter {
       }
     } finally {
       reader.releaseLock()
-      this.resetTimingState()
     }
   }
 
@@ -121,17 +100,6 @@ export class AiSdkToChunkAdapter {
   ) {
     logger.silly(`AI SDK chunk type: ${chunk.type}`, chunk)
     switch (chunk.type) {
-      case 'raw': {
-        const agentRawMessage = chunk.rawValue as ClaudeCodeRawValue
-        if (agentRawMessage.type === 'init' && agentRawMessage.session_id) {
-          this.onSessionUpdate?.(agentRawMessage.session_id)
-        }
-        this.onChunk({
-          type: ChunkType.RAW,
-          content: agentRawMessage
-        })
-        break
-      }
       // === 文本相关事件 ===
       case 'text-start':
         this.onChunk({
@@ -169,7 +137,6 @@ export class AiSdkToChunkAdapter {
 
         // Only emit chunk if there's text to send
         if (finalText) {
-          this.markFirstTokenIfNeeded()
           this.onChunk({
             type: ChunkType.TEXT_DELTA,
             text: this.accumulate ? final.text : finalText
@@ -194,18 +161,16 @@ export class AiSdkToChunkAdapter {
         break
       case 'reasoning-delta':
         final.reasoningContent += chunk.text || ''
-        if (chunk.text) {
-          this.markFirstTokenIfNeeded()
-        }
         this.onChunk({
           type: ChunkType.THINKING_DELTA,
-          text: final.reasoningContent || ''
+          text: final.reasoningContent || '',
+          thinking_millsec: (chunk.providerMetadata?.metadata?.thinking_millsec as number) || 0
         })
         break
       case 'reasoning-end':
         this.onChunk({
           type: ChunkType.THINKING_COMPLETE,
-          text: final.reasoningContent || ''
+          text: (chunk.providerMetadata?.metadata?.thinking_content as string) || final.reasoningContent
         })
         final.reasoningContent = ''
         break
@@ -296,37 +261,44 @@ export class AiSdkToChunkAdapter {
         break
       }
 
-      case 'finish': {
-        const usage = {
-          completion_tokens: chunk.totalUsage?.outputTokens || 0,
-          prompt_tokens: chunk.totalUsage?.inputTokens || 0,
-          total_tokens: chunk.totalUsage?.totalTokens || 0
-        }
-        const metrics = this.buildMetrics(chunk.totalUsage)
-        const baseResponse = {
-          text: final.text || '',
-          reasoning_content: final.reasoningContent || ''
-        }
-
+      case 'finish':
         this.onChunk({
           type: ChunkType.BLOCK_COMPLETE,
           response: {
-            ...baseResponse,
-            usage: { ...usage },
-            metrics: metrics ? { ...metrics } : undefined
+            text: final.text || '',
+            reasoning_content: final.reasoningContent || '',
+            usage: {
+              completion_tokens: chunk.totalUsage.outputTokens || 0,
+              prompt_tokens: chunk.totalUsage.inputTokens || 0,
+              total_tokens: chunk.totalUsage.totalTokens || 0
+            },
+            metrics: chunk.totalUsage
+              ? {
+                  completion_tokens: chunk.totalUsage.outputTokens || 0,
+                  time_completion_millsec: 0
+                }
+              : undefined
           }
         })
         this.onChunk({
           type: ChunkType.LLM_RESPONSE_COMPLETE,
           response: {
-            ...baseResponse,
-            usage: { ...usage },
-            metrics: metrics ? { ...metrics } : undefined
+            text: final.text || '',
+            reasoning_content: final.reasoningContent || '',
+            usage: {
+              completion_tokens: chunk.totalUsage.outputTokens || 0,
+              prompt_tokens: chunk.totalUsage.inputTokens || 0,
+              total_tokens: chunk.totalUsage.totalTokens || 0
+            },
+            metrics: chunk.totalUsage
+              ? {
+                  completion_tokens: chunk.totalUsage.outputTokens || 0,
+                  time_completion_millsec: 0
+                }
+              : undefined
           }
         })
-        this.resetTimingState()
         break
-      }
 
       // === 源和文件相关事件 ===
       case 'source':
@@ -360,34 +332,6 @@ export class AiSdkToChunkAdapter {
         break
 
       default:
-    }
-  }
-
-  private buildMetrics(totalUsage?: {
-    inputTokens?: number | null
-    outputTokens?: number | null
-    totalTokens?: number | null
-  }) {
-    if (!totalUsage) {
-      return undefined
-    }
-
-    const completionTokens = totalUsage.outputTokens ?? 0
-    const now = Date.now()
-    const start = this.responseStartTimestamp ?? now
-    const firstToken = this.firstTokenTimestamp
-    const timeFirstToken = Math.max(firstToken != null ? firstToken - start : 0, 0)
-    const baseForCompletion = firstToken ?? start
-    let timeCompletion = Math.max(now - baseForCompletion, 0)
-
-    if (timeCompletion === 0 && completionTokens > 0) {
-      timeCompletion = 1
-    }
-
-    return {
-      completion_tokens: completionTokens,
-      time_first_token_millsec: timeFirstToken,
-      time_completion_millsec: timeCompletion
     }
   }
 }

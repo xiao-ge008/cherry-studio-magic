@@ -6,13 +6,14 @@ import React from 'react'
 import styled from 'styled-components'
 
 import MessageBlockRenderer from './Blocks'
+import { MessageProvider } from './MessageContext'
 interface Props {
   message: Message
 }
 
 const MessageContent: React.FC<Props> = ({ message }) => {
   return (
-    <>
+    <MessageProvider value={{ message, topicId: message.topicId }}>
       {!isEmpty(message.mentions) && (
         <Flex gap="8px" wrap style={{ marginBottom: '10px' }}>
           {message.mentions?.map((model) => (
@@ -21,7 +22,7 @@ const MessageContent: React.FC<Props> = ({ message }) => {
         </Flex>
       )}
       <MessageBlockRenderer blocks={message.blocks} message={message} />
-    </>
+    </MessageProvider>
   )
 }
 

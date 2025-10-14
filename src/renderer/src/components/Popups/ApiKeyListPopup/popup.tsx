@@ -10,7 +10,6 @@ interface ShowParams {
   providerId: string
   title?: string
   showHealthCheck?: boolean
-  providerType?: 'llm' | 'webSearch' | 'preprocess'
 }
 
 interface Props extends ShowParams {
@@ -20,7 +19,7 @@ interface Props extends ShowParams {
 /**
  * API Key 列表弹窗容器组件
  */
-const PopupContainer: React.FC<Props> = ({ providerId, title, resolve, showHealthCheck = true, providerType }) => {
+const PopupContainer: React.FC<Props> = ({ providerId, title, resolve, showHealthCheck = true }) => {
   const [open, setOpen] = useState(true)
   const { t } = useTranslation()
 
@@ -33,20 +32,14 @@ const PopupContainer: React.FC<Props> = ({ providerId, title, resolve, showHealt
   }
 
   const ListComponent = useMemo(() => {
-    const type =
-      providerType ||
-      (isWebSearchProviderId(providerId) ? 'webSearch' : isPreprocessProviderId(providerId) ? 'preprocess' : 'llm')
-
-    switch (type) {
-      case 'webSearch':
-        return <WebSearchApiKeyList providerId={providerId as any} showHealthCheck={showHealthCheck} />
-      case 'preprocess':
-        return <DocPreprocessApiKeyList providerId={providerId as any} showHealthCheck={showHealthCheck} />
-      case 'llm':
-      default:
-        return <LlmApiKeyList providerId={providerId} showHealthCheck={showHealthCheck} />
+    if (isWebSearchProviderId(providerId)) {
+      return <WebSearchApiKeyList providerId={providerId} showHealthCheck={showHealthCheck} />
     }
-  }, [providerId, showHealthCheck, providerType])
+    if (isPreprocessProviderId(providerId)) {
+      return <DocPreprocessApiKeyList providerId={providerId} showHealthCheck={showHealthCheck} />
+    }
+    return <LlmApiKeyList providerId={providerId} showHealthCheck={showHealthCheck} />
+  }, [providerId, showHealthCheck])
 
   return (
     <Modal

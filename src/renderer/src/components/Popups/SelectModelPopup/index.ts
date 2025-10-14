@@ -1,2 +1,3 @@
-export { SelectApiModelPopup } from './api-model-popup'
-export { SelectModelPopup } from './popup'
+import { SelectModelPopup } from './popup'
+
+export default SelectModelPopup

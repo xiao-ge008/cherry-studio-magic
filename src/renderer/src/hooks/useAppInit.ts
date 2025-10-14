@@ -63,9 +63,44 @@ export function useAppInit() {
   }, [])
 
   useEffect(() => {
-    window.electron.ipcRenderer.on(IpcChannel.App_SaveData, async () => {
+    const handleSaveDataEvent = async () => {
       await handleSaveData()
-    })
+    }
+
+    const handleComfyUIComponentsRequest = async () => {
+      try {
+        logger.info('📥 Received ComfyUI components request from main process')
+
+        // 动态导入ComponentService
+        const { componentService } = await import('@renderer/services/ComponentService')
+        const components = componentService.getComfyUIComponents()
+
+        logger.info('📤 Sending ComfyUI components response to main process', {
+          count: components.length,
+          componentNames: components.map((c) => c.componentName),
+          hasVerticalPainting: components.some((c) => c.componentName === 'verticalPainting')
+        })
+
+        // 发送响应
+        window.electron.ipcRenderer.send('comfyui-components-response', components)
+        logger.info('✅ ComfyUI components response sent successfully')
+      } catch (error) {
+        logger.error('❌ Failed to handle ComfyUI components request', error as Error)
+        window.electron.ipcRenderer.send('comfyui-components-response', [])
+      }
+    }
+
+    // 设置监听器
+    window.electron.ipcRenderer.on(IpcChannel.App_SaveData, handleSaveDataEvent)
+    window.electron.ipcRenderer.on('comfyui-components-request', handleComfyUIComponentsRequest)
+
+    logger.info('ComfyUI IPC listeners registered in useAppInit')
+
+    // 清理函数
+    return () => {
+      window.electron.ipcRenderer.removeListener(IpcChannel.App_SaveData, handleSaveDataEvent)
+      window.electron.ipcRenderer.removeListener('comfyui-components-request', handleComfyUIComponentsRequest)
+    }
   }, [])
 
   useUpdateHandler()

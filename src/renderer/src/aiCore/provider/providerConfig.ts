@@ -18,10 +18,9 @@ import { loggerService } from '@renderer/services/LoggerService'
 import store from '@renderer/store'
 import { isSystemProvider, type Model, type Provider } from '@renderer/types'
 import { formatApiHost } from '@renderer/utils/api'
-import { cloneDeep, trim } from 'lodash'
+import { cloneDeep, isEmpty } from 'lodash'
 
 import { aihubmixProviderCreator, newApiResolverCreator, vertexAnthropicProviderCreator } from './config'
-import { COPILOT_DEFAULT_HEADERS } from './constants'
 import { getAiSdkProviderId } from './factory'
 
 const logger = loggerService.withContext('ProviderConfigProcessor')
@@ -80,40 +79,9 @@ function handleSpecialProviders(model: Model, provider: Provider): Provider {
 /**
  * 格式化provider的API Host
  */
-function formatAnthropicApiHost(host: string): string {
-  const trimmedHost = host?.trim()
-
-  if (!trimmedHost) {
-    return ''
-  }
-
-  if (trimmedHost.endsWith('/')) {
-    return trimmedHost
-  }
-
-  if (trimmedHost.endsWith('/v1')) {
-    return `${trimmedHost}/`
-  }
-
-  return formatApiHost(trimmedHost)
-}
-
 function formatProviderApiHost(provider: Provider): Provider {
   const formatted = { ...provider }
-  if (formatted.anthropicApiHost) {
-    formatted.anthropicApiHost = formatAnthropicApiHost(formatted.anthropicApiHost)
-  }
-
-  if (formatted.type === 'anthropic') {
-    const baseHost = formatted.anthropicApiHost || formatted.apiHost
-    formatted.apiHost = formatAnthropicApiHost(baseHost)
-    if (!formatted.anthropicApiHost) {
-      formatted.anthropicApiHost = formatted.apiHost
-    }
-  } else if (formatted.id === 'copilot') {
-    const trimmed = trim(formatted.apiHost)
-    formatted.apiHost = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
-  } else if (formatted.type === 'gemini') {
+  if (formatted.type === 'gemini') {
     formatted.apiHost = formatApiHost(formatted.apiHost, 'v1beta')
   } else {
     formatted.apiHost = formatApiHost(formatted.apiHost)
@@ -152,29 +120,9 @@ export function providerToAiSdkConfig(
 
   // 构建基础配置
   const baseConfig = {
-    baseURL: trim(actualProvider.apiHost),
+    baseURL: actualProvider.apiHost,
     apiKey: getRotatedApiKey(actualProvider)
   }
-
-  const isCopilotProvider = actualProvider.id === 'copilot'
-  if (isCopilotProvider) {
-    const storedHeaders = store.getState().copilot.defaultHeaders ?? {}
-    const options = ProviderConfigFactory.fromProvider('github-copilot-openai-compatible', baseConfig, {
-      headers: {
-        ...COPILOT_DEFAULT_HEADERS,
-        ...storedHeaders,
-        ...actualProvider.extra_headers
-      },
-      name: actualProvider.id,
-      includeUsage: true
-    })
-
-    return {
-      providerId: 'github-copilot-openai-compatible',
-      options
-    }
-  }
-
   // 处理OpenAI模式
   const extraOptions: any = {}
   if (actualProvider.type === 'openai-response' && !isOpenAIChatCompletionOnlyModel(model)) {
@@ -194,6 +142,15 @@ export function providerToAiSdkConfig(
         'X-Title': 'Cherry Studio',
         'X-Api-Key': baseConfig.apiKey
       }
+    }
+  }
+
+  // copilot
+  if (actualProvider.id === 'copilot') {
+    extraOptions.headers = {
+      ...extraOptions.headers,
+      'editor-version': 'vscode/1.97.2',
+      'copilot-vision-request': 'true'
     }
   }
   // azure
@@ -238,12 +195,10 @@ export function providerToAiSdkConfig(
     } else if (baseConfig.baseURL.endsWith('/v1')) {
       baseConfig.baseURL = baseConfig.baseURL.slice(0, -3)
     }
-
-    if (baseConfig.baseURL && !baseConfig.baseURL.includes('publishers/google')) {
-      baseConfig.baseURL = `${baseConfig.baseURL}/v1/projects/${project}/locations/${location}/publishers/google`
-    }
+    baseConfig.baseURL = isEmpty(baseConfig.baseURL) ? '' : baseConfig.baseURL
   }
 
+  // 如果AI SDK支持该provider，使用原生配置
   if (hasProviderConfig(aiSdkProviderId) && aiSdkProviderId !== 'openai-compatible') {
     const options = ProviderConfigFactory.fromProvider(aiSdkProviderId, baseConfig, extraOptions)
     return {
@@ -291,17 +246,9 @@ export async function prepareSpecialProviderConfig(
 ) {
   switch (provider.id) {
     case 'copilot': {
-      const defaultHeaders = store.getState().copilot.defaultHeaders ?? {}
-      const headers = {
-        ...COPILOT_DEFAULT_HEADERS,
-        ...defaultHeaders
-      }
-      const { token } = await window.api.copilot.getToken(headers)
+      const defaultHeaders = store.getState().copilot.defaultHeaders
+      const { token } = await window.api.copilot.getToken(defaultHeaders)
       config.options.apiKey = token
-      config.options.headers = {
-        ...headers,
-        ...config.options.headers
-      }
       break
     }
     case 'cherryai': {

@@ -93,7 +93,7 @@ export const CodeBlockView: React.FC<Props> = memo(({ children, language, onSave
   const sourceViewRef = useRef<CodeEditorHandles>(null)
   const specialViewRef = useRef<BasicPreviewHandles>(null)
 
-  const hasSpecialView = useMemo(() => SPECIAL_VIEWS.includes(language as any), [language])
+  const hasSpecialView = useMemo(() => SPECIAL_VIEWS.includes(language), [language])
 
   const isInSpecialView = useMemo(() => {
     return hasSpecialView && viewMode === 'special'

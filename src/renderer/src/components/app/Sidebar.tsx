@@ -132,6 +132,8 @@ const MainMenus: FC = () => {
 
   const iconMap = {
     assistants: <MessageSquare size={18} className="icon" />,
+    agents: <Sparkle size={18} className="icon" />,
+    // Backward compatibility: historical key "store" should behave like agents
     store: <Sparkle size={18} className="icon" />,
     paintings: <Palette size={18} className="icon" />,
     translate: <Languages size={18} className="icon" />,
@@ -144,7 +146,9 @@ const MainMenus: FC = () => {
 
   const pathMap = {
     assistants: '/',
-    store: '/store',
+    agents: '/agents',
+    // Backward compatibility: map legacy "store" to agents page
+    store: '/agents',
     paintings: `/paintings/${defaultPaintingProvider}`,
     translate: '/translate',
     minapp: '/apps',

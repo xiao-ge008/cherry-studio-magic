@@ -119,27 +119,23 @@ publish:
   url: https://releases.cherry-ai.com
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
+npmRebuild: false
 beforePack: scripts/before-pack.js
 afterPack: scripts/after-pack.js
 afterSign: scripts/notarize.js
 artifactBuildCompleted: scripts/artifact-build-completed.js
 releaseInfo:
   releaseNotes: |
-    What's New in v1.6.3
+    🐛 问题修复：
+    - 修复 Anthropic API URL 处理，移除尾部斜杠并添加端点路径处理
+    - 修复 MessageEditor 缺少 QuickPanelProvider 包装的问题
+    - 修复 MiniWindow 高度问题
 
-    Features:
-    - Notes: Add spell-check control, automatic table line wrapping, export functionality, and LLM-based renaming
-    - UI: Expand topic rename clickable area, add middle-click tab closing, remove redundant scrollbars, fix message menubar overflow
-    - Editor: Add read-only extension support, make TextFilePreview read-only but copyable
-    - Models: Update support for DeepSeek v3.2, Claude 4.5, GLM 4.6, Gemini regex, and vision models
-    - Code Tools: Add GitHub Copilot CLI integration
+    🚀 性能优化：
+    - 优化输入栏提及模型状态缓存，在渲染间保持状态
+    - 重构网络搜索参数支持模型内置搜索，新增 OpenAI Chat 和 OpenRouter 支持
 
-    Bug Fixes:
-    - Fix migration for missing providers
-    - Fix forked topic retaining old name after rename
-    - Restore first token latency reporting in metrics
-    - Fix UI scrollbar and overflow issues
-
-    Technical Updates:
-    - Upgrade to Electron 37.6.0
-    - Update dependencies across packages
+    🔧 重构改进：
+    - 更新 HeroUIProvider 导入路径，改善上下文管理
+    - 更新依赖项和 VSCode 开发环境配置
+    - 升级 @cherrystudio/ai-core 到 v1.0.0-alpha.17

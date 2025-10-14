@@ -87,7 +87,8 @@ export class WindowService {
         webviewTag: true,
         allowRunningInsecureContent: true,
         zoomFactor: configManager.getZoomFactor(),
-        backgroundThrottling: false
+        backgroundThrottling: false,
+        autoplayPolicy: 'no-user-gesture-required'
       }
     })
 
@@ -256,7 +257,12 @@ export class WindowService {
 
   private setupWebContentsHandlers(mainWindow: BrowserWindow) {
     mainWindow.webContents.on('will-navigate', (event, url) => {
-      if (url.includes('localhost:517')) {
+      if (url.includes('localhost:5173')) {
+        return
+      }
+
+      // 允许ComfyUI URL通过，不阻止导航
+      if (url.includes('comfy-') || url.includes('comfyui-')) {
         return
       }
 
@@ -275,8 +281,7 @@ export class WindowService {
         'https://aihubmix.com/topup',
         'https://aihubmix.com/statistics',
         'https://dash.302.ai/sso/login',
-        'https://dash.302.ai/charge',
-        'https://www.aiionly.com/login'
+        'https://dash.302.ai/charge'
       ]
 
       if (oauthProviderUrls.some((link) => url.startsWith(link))) {
@@ -303,6 +308,7 @@ export class WindowService {
     })
 
     this.setupWebRequestHeaders(mainWindow)
+    this.setupComfyUIRequestInterceptor(mainWindow)
   }
 
   private setupWebRequestHeaders(mainWindow: BrowserWindow) {
@@ -321,6 +327,21 @@ export class WindowService {
       }
       callback({ cancel: false, responseHeaders: details.responseHeaders })
     })
+  }
+
+  private setupComfyUIRequestInterceptor(mainWindow: BrowserWindow) {
+    try {
+      // 动态导入ComfyUI请求拦截器
+      import('./ComfyUIRequestInterceptor')
+        .then(({ ComfyUIRequestInterceptor }) => {
+          ComfyUIRequestInterceptor.setupInterceptor(mainWindow)
+        })
+        .catch((error) => {
+          logger.error('Failed to setup ComfyUI request interceptor', error)
+        })
+    } catch (error) {
+      logger.error('Failed to import ComfyUI request interceptor', error as Error)
+    }
   }
 
   private loadMainWindowContent(mainWindow: BrowserWindow) {
@@ -504,7 +525,8 @@ export class WindowService {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
         webSecurity: false,
-        webviewTag: true
+        webviewTag: true,
+        autoplayPolicy: 'no-user-gesture-required'
       }
     })
 

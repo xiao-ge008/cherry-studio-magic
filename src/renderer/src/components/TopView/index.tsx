@@ -72,7 +72,6 @@ const TopViewContainer: React.FC<Props> = ({ children }) => {
   const FullScreenContainer: React.FC<PropsWithChildren> = useCallback(({ children }) => {
     return (
       <Box flex={1} position="absolute" w="100%" h="100%" className="topview-fullscreen-container">
-        <Box position="absolute" w="100%" h="100%" onClick={onPop} />
         {children}
       </Box>
     )
