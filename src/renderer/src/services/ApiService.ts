@@ -371,6 +371,8 @@ export function checkApiProvider(provider: Provider): void {
   if (
     provider.id !== 'ollama' &&
     provider.id !== 'lmstudio' &&
+    provider.id !== 'gemini-cli' &&
+    provider.id !== 'qwen-cli' &&
     provider.type !== 'vertexai' &&
     provider.id !== 'copilot'
   ) {

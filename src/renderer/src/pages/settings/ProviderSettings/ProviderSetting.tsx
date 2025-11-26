@@ -42,6 +42,7 @@ import {
 } from '..'
 import ApiOptionsSettingsPopup from './ApiOptionsSettings/ApiOptionsSettingsPopup'
 import AwsBedrockSettings from './AwsBedrockSettings'
+import CliSystemPromptPopup from './CliSystemPromptPopup'
 import CustomHeaderPopup from './CustomHeaderPopup'
 import DMXAPISettings from './DMXAPISettings'
 import GithubCopilotSettings from './GithubCopilotSettings'
@@ -61,13 +62,14 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   const { updateProviders } = useProviders()
   const [apiHost, setApiHost] = useState(provider.apiHost)
   const [apiVersion, setApiVersion] = useState(provider.apiVersion)
-  const { t } = useTranslation()
+  const { t, i18n: i18nextInstance } = useTranslation()
   const { theme } = useTheme()
   const { setTimeoutTimer } = useTimer()
   const dispatch = useAppDispatch()
 
   const isAzureOpenAI = provider.id === 'azure-openai' || provider.type === 'azure-openai'
   const isDmxapi = provider.id === 'dmxapi'
+  const isCliProvider = provider.id === 'gemini-cli' || provider.id === 'qwen-cli'
   const hideApiInput = ['vertexai', 'aws-bedrock'].includes(provider.id)
 
   const providerConfig = PROVIDER_URLS[provider.id]
@@ -351,27 +353,47 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
           {!isDmxapi && !isAnthropicOAuth() && (
             <>
               <SettingSubtitle style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                {t('settings.provider.api_host')}
-                <Button
-                  type="text"
-                  onClick={() => CustomHeaderPopup.show({ provider })}
-                  icon={<Settings2 size={16} />}
-                />
+                {isCliProvider
+                  ? i18nextInstance.language?.toLowerCase().startsWith('zh')
+                    ? 'API 服务器地址'
+                    : 'API Server URL'
+                  : t('settings.provider.api_host')}
+                {!isCliProvider && (
+                  <Button
+                    type="text"
+                    onClick={() => CustomHeaderPopup.show({ provider })}
+                    icon={<Settings2 size={16} />}
+                  />
+                )}
               </SettingSubtitle>
               <Space.Compact style={{ width: '100%', marginTop: 5 }}>
                 <Input
                   value={apiHost}
-                  placeholder={t('settings.provider.api_host')}
+                  placeholder={isCliProvider ? configedApiHost : t('settings.provider.api_host')}
                   onChange={(e) => setApiHost(e.target.value)}
                   onBlur={onUpdateApiHost}
                 />
                 {!isEmpty(configedApiHost) && apiHost !== configedApiHost && (
                   <Button danger onClick={onReset}>
-                    {t('settings.provider.api.url.reset')}
+                    {i18nextInstance.language?.toLowerCase().startsWith('zh') ? '重置' : 'Reset'}
                   </Button>
                 )}
               </Space.Compact>
-              {(isOpenAIProvider(provider) || isAnthropicProvider(provider)) && (
+              {isCliProvider && (
+                <SettingHelpTextRow style={{ justifyContent: 'space-between', marginTop: 4 }}>
+                  <SettingHelpText style={{ flex: 1 }}>
+                    {i18nextInstance.language?.toLowerCase().startsWith('zh')
+                      ? `默认地址：${configedApiHost}`
+                      : `Default URL: ${configedApiHost}`}
+                  </SettingHelpText>
+                  <SettingHelpText style={{ minWidth: 'fit-content', marginLeft: 16 }}>
+                    {i18nextInstance.language?.toLowerCase().startsWith('zh')
+                      ? 'Cherry Studio API 服务器'
+                      : 'Cherry Studio API Server'}
+                  </SettingHelpText>
+                </SettingHelpTextRow>
+              )}
+              {!isCliProvider && (isOpenAIProvider(provider) || isAnthropicProvider(provider)) && (
                 <SettingHelpTextRow style={{ justifyContent: 'space-between' }}>
                   <SettingHelpText
                     style={{ marginLeft: 6, marginRight: '1em', whiteSpace: 'break-spaces', wordBreak: 'break-all' }}>
@@ -402,6 +424,48 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
               {t('settings.provider.azure.apiversion.tip')}
             </SettingHelpText>
           </SettingHelpTextRow>
+        </>
+      )}
+      {isCliProvider && (
+        <>
+          <SettingSubtitle
+            style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>
+              {i18nextInstance.language?.toLowerCase().startsWith('zh')
+                ? 'CLI 全局系统提示词'
+                : 'CLI Global System Prompt'}
+            </span>
+            <Tooltip
+              title={
+                i18nextInstance.language?.toLowerCase().startsWith('zh')
+                  ? '在全局编辑器中编辑'
+                  : 'Edit in Global Editor'
+              }
+              mouseEnterDelay={0.5}>
+              <Button
+                type="text"
+                size="small"
+                icon={<Settings2 size={16} />}
+                onClick={() => CliSystemPromptPopup.show({ providerId: provider.id })}
+              />
+            </Tooltip>
+          </SettingSubtitle>
+          <SettingHelpText style={{ marginBottom: 8 }}>
+            {i18nextInstance.language?.toLowerCase().startsWith('zh')
+              ? '这里的提示词会作为 system 消息，在每次调用这个 CLI 提供商之前自动附加到对话最前面。'
+              : 'This prompt will be automatically added as a system message at the beginning of every conversation when using this CLI provider.'}
+          </SettingHelpText>
+          <Input.TextArea
+            autoSize={{ minRows: 4, maxRows: 8 }}
+            value={provider.cliSystemPrompt || ''}
+            placeholder={
+              i18nextInstance.language?.toLowerCase().startsWith('zh')
+                ? '为此 CLI 提供商设置一个默认的系统提示词（可选）...\n\n示例：\n- 你是一个专业的编程助手\n- 请始终用中文回答\n- 代码注释请使用中文'
+                : 'Set a default system prompt for this CLI provider (optional)...\n\nExample:\n- You are a professional programming assistant\n- Always respond in English\n- Use English for code comments'
+            }
+            onChange={(e) => updateProvider({ cliSystemPrompt: e.target.value })}
+            style={{ fontFamily: 'Consolas, Monaco, Courier New, monospace' }}
+          />
         </>
       )}
       {provider.id === 'lmstudio' && <LMStudioSettings />}

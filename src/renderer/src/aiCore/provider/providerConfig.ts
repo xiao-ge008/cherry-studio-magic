@@ -81,6 +81,30 @@ function handleSpecialProviders(model: Model, provider: Provider): Provider {
  */
 function formatProviderApiHost(provider: Provider): Provider {
   const formatted = { ...provider }
+
+  // Special handling for local CLI providers that are exposed via the Cherry Studio API server.
+  // Their actual port is controlled by the API Server settings, not by the static provider config.
+  if (formatted.id === 'gemini-cli' || formatted.id === 'qwen-cli') {
+    try {
+      const state = store.getState() as any
+      const port = state?.settings?.apiServer?.port || 23333
+      const cliName = formatted.id === 'gemini-cli' ? 'gemini' : 'qwen'
+      // Important: we include the `/v1/cli/<name>` prefix here so that the AI SDK
+      // can call `/chat/completions` on top of this, resulting in:
+      //   http://localhost:<port>/v1/cli/<name>/chat/completions
+      // which matches the Express route: /v1/cli/<name>/chat/completions.
+      formatted.apiHost = `http://localhost:${port}/v1/cli/${cliName}`
+    } catch {
+      // Fallback to the default hardcoded port if store is not available for any reason
+      const cliName = formatted.id === 'gemini-cli' ? 'gemini' : 'qwen'
+      formatted.apiHost = `http://localhost:23333/v1/cli/${cliName}`
+    }
+
+    // For CLI providers we must NOT run formatApiHost again, otherwise it would
+    // append an extra `/v1/` and break the path (e.g. /v1/cli/gemini/v1/chat/completions).
+    return formatted
+  }
+
   if (formatted.type === 'gemini') {
     formatted.apiHost = formatApiHost(formatted.apiHost, 'v1beta')
   } else {

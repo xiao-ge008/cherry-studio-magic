@@ -64,6 +64,11 @@ export class ReduxService extends EventEmitter {
   // 添加同步选择器方法
   selectSync<T = StoreValue>(selector: string): T | undefined {
     try {
+      // 如果 stateCache 为空或未初始化，直接返回 undefined
+      if (!this.stateCache || Object.keys(this.stateCache).length === 0) {
+        return undefined
+      }
+
       // 使用 Function 构造器来安全地执行选择器
       const selectorFn = new Function('state', `return ${selector}`)
       return selectorFn(this.stateCache)

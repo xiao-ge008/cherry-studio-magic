@@ -2040,6 +2040,7 @@
     "doubao": "Volcengine",
     "fireworks": "Fireworks",
     "gemini": "Gemini",
+    "gemini-cli": "Gemini CLI",
     "gitee-ai": "Gitee AI",
     "github": "GitHub Models",
     "gpustack": "GPUStack",
@@ -2067,6 +2068,7 @@
     "poe": "Poe",
     "ppio": "PPIO",
     "qiniu": "Qiniu AI",
+    "qwen-cli": "Qwen CLI",
     "qwenlm": "QwenLM",
     "silicon": "SiliconFlow",
     "stepfun": "StepFun",
@@ -3942,6 +3944,13 @@
       "docs_more_details": "for more details",
       "get_api_key": "Get API Key",
       "misc": "Other",
+      "cli": {
+        "system_prompt": {
+          "label": "CLI system prompt",
+          "help": "This prompt will be sent as a system message before all requests for this CLI provider.",
+          "placeholder": "Enter a base system prompt for this CLI provider (optional)..."
+        }
+      },
       "no_models_for_check": "No models available for checking (e.g. chat models)",
       "not_checked": "Not Checked",
       "notes": {

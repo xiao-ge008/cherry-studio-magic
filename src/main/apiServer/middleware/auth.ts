@@ -40,6 +40,14 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: 'Unauthorized: invalid credentials format' })
   }
 
+  // Special case: Allow 'local' key for localhost requests (for CLI integration)
+  if (token === 'local') {
+    const clientIp = req.ip || req.socket.remoteAddress
+    if (clientIp === '::1' || clientIp === '127.0.0.1' || clientIp === '::ffff:127.0.0.1') {
+      return next()
+    }
+  }
+
   const { apiKey } = await config.get()
 
   if (!apiKey) {

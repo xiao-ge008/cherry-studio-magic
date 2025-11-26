@@ -7,9 +7,10 @@ import { authMiddleware } from './middleware/auth'
 import { errorHandler } from './middleware/error'
 import { setupOpenAPIDocumentation } from './middleware/openapi'
 import { chatRoutes } from './routes/chat'
+import { cliRoutes } from './routes/cli'
+import { comfyUIRoutes } from './routes/comfyui'
 import { mcpRoutes } from './routes/mcp'
 import { modelsRoutes } from './routes/models'
-import { comfyUIRoutes } from './routes/comfyui'
 
 const logger = loggerService.withContext('ApiServer')
 
@@ -121,6 +122,7 @@ apiRouter.use(express.json())
 apiRouter.use('/chat', chatRoutes)
 apiRouter.use('/mcps', mcpRoutes)
 apiRouter.use('/models', modelsRoutes)
+apiRouter.use('/cli', cliRoutes)
 app.use('/v1', apiRouter)
 
 // Setup OpenAPI documentation

@@ -622,6 +622,42 @@ export const SYSTEM_PROVIDERS_CONFIG: Record<SystemProviderId, SystemProvider> =
     models: SYSTEM_MODELS['poe'],
     isSystem: true,
     enabled: false
+  },
+  'gemini-cli': {
+    id: 'gemini-cli',
+    name: 'Gemini CLI',
+    type: 'openai',
+    apiKey: 'local',
+    apiHost: 'http://127.0.0.1:23333/v1/cli/gemini',
+    models: [
+      {
+        id: 'gemini-cli',
+        name: 'Gemini CLI',
+        provider: 'gemini-cli',
+        group: 'CLI',
+        type: ['text']
+      }
+    ],
+    isSystem: true,
+    enabled: false
+  },
+  'qwen-cli': {
+    id: 'qwen-cli',
+    name: 'Qwen CLI',
+    type: 'openai',
+    apiKey: 'local',
+    apiHost: 'http://127.0.0.1:23333/v1/cli/qwen',
+    models: [
+      {
+        id: 'qwen-cli',
+        name: 'Qwen CLI',
+        provider: 'qwen-cli',
+        group: 'CLI',
+        type: ['text']
+      }
+    ],
+    isSystem: true,
+    enabled: false
   }
 } as const
 
@@ -684,7 +720,9 @@ export const PROVIDER_LOGO_MAP: AtLeast<SystemProviderId, string> = {
   'new-api': NewAPIProviderLogo,
   'aws-bedrock': AwsProviderLogo,
   poe: 'poe', // use svg icon component
-  aionly: AiOnlyProviderLogo
+  aionly: AiOnlyProviderLogo,
+  'gemini-cli': GoogleProviderLogo,
+  'qwen-cli': AiOnlyProviderLogo // Placeholder, maybe use a specific one if available
 } as const
 
 export function getProviderLogo(providerId: string) {
@@ -1289,6 +1327,26 @@ export const PROVIDER_URLS: Record<SystemProviderId, ProviderUrls> = {
       apiKey: 'https://www.aiionly.com/keyApi',
       docs: 'https://www.aiionly.com/document',
       models: 'https://www.aiionly.com'
+    }
+  },
+  'gemini-cli': {
+    api: {
+      // Default to Cherry Studio API server's CLI gateway
+      url: 'http://127.0.0.1:23333/v1/cli/gemini'
+    },
+    websites: {
+      official: 'https://gemini.google.com/',
+      docs: 'https://geminicli.com/docs/cli/headless/'
+    }
+  },
+  'qwen-cli': {
+    api: {
+      // Default to Cherry Studio API server's CLI gateway
+      url: 'http://127.0.0.1:23333/v1/cli/qwen'
+    },
+    websites: {
+      official: 'https://qwenlm.github.io/qwen-code-docs/zh/',
+      docs: 'https://qwenlm.github.io/qwen-code-docs/zh/features/headless/'
     }
   }
 }

@@ -98,6 +98,55 @@ export abstract class OpenAIBaseClient<
 
   override async listModels(): Promise<OpenAI.Models.Model[]> {
     try {
+      // Special handling for local CLI providers that are exposed via the Cherry Studio API server
+      if (this.provider.id === 'gemini-cli' || this.provider.id === 'qwen-cli') {
+        try {
+          const apiServer = (window as any)?.api?.apiServer
+          let baseUrl = 'http://localhost:23333'
+
+          if (apiServer?.getConfig) {
+            try {
+              const config = await apiServer.getConfig()
+              if (config?.port) {
+                baseUrl = `http://localhost:${config.port}`
+              }
+            } catch (configError) {
+              logger.warn('Failed to get API server config for CLI provider, falling back to default port', configError as Error)
+            }
+          }
+
+          const cliName = this.provider.id === 'gemini-cli' ? 'gemini' : 'qwen'
+          const response = await fetch(`${baseUrl}/v1/cli/${cliName}/models`, {
+            headers: {
+              // Use the special local token that is accepted by the API server for localhost requests
+              Authorization: 'Bearer local'
+            }
+          })
+
+          if (!response.ok) {
+            logger.error('CLI models endpoint returned non-OK response', {
+              providerId: this.provider.id,
+              status: response.status,
+              statusText: response.statusText
+            })
+            return []
+          }
+
+          const result = (await response.json()) as { data?: Array<Pick<OpenAI.Models.Model, 'id' | 'owned_by'>> }
+          const data = result?.data || []
+
+          return data.map((m) => ({
+            id: m.id,
+            object: 'model',
+            created: Math.floor(Date.now() / 1000),
+            owned_by: m.owned_by || cliName
+          })) as OpenAI.Models.Model[]
+        } catch (cliError) {
+          logger.error('Error listing models from CLI provider via API server:', cliError as Error)
+          return []
+        }
+      }
+
       const sdk = await this.getSdkInstance()
       if (this.provider.id === 'github') {
         // GitHub Models 其 models 和 chat completions 两个接口的 baseUrl 不一样

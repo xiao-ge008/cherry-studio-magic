@@ -266,6 +266,11 @@ export type Provider = {
   isVertex?: boolean
   notes?: string
   extra_headers?: Record<string, string>
+  /**
+   * Optional global system prompt for CLI-style providers (e.g. gemini-cli, qwen-cli).
+   * This allows configuring a base persona/prompt per provider.
+   */
+  cliSystemPrompt?: string
 }
 
 export const SystemProviderIds = {
@@ -322,7 +327,9 @@ export const SystemProviderIds = {
   voyageai: 'voyageai',
   'aws-bedrock': 'aws-bedrock',
   poe: 'poe',
-  aionly: 'aionly'
+  aionly: 'aionly',
+  'gemini-cli': 'gemini-cli',
+  'qwen-cli': 'qwen-cli'
 } as const
 
 export type SystemProviderId = keyof typeof SystemProviderIds

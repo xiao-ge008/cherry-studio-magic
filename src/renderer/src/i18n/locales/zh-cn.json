@@ -2024,6 +2024,7 @@
   "provider": {
     "302ai": "302.AI",
     "aihubmix": "AiHubMix",
+    "aionly": "AIONLY",
     "alayanew": "Alaya NeW",
     "anthropic": "Anthropic",
     "aws-bedrock": "AWS Bedrock",
@@ -2040,6 +2041,7 @@
     "doubao": "火山引擎",
     "fireworks": "Fireworks",
     "gemini": "Gemini",
+    "gemini-cli": "Gemini CLI",
     "gitee-ai": "模力方舟",
     "github": "GitHub Models",
     "gpustack": "GPUStack",
@@ -2056,6 +2058,7 @@
     "modelscope": "ModelScope 魔搭",
     "moonshot": "月之暗面",
     "new-api": "New API",
+    "novita": "Novita",
     "nvidia": "英伟达",
     "o3": "O3",
     "ocoolai": "ocoolAI",
@@ -2067,7 +2070,9 @@
     "poe": "Poe",
     "ppio": "PPIO 派欧云",
     "qiniu": "七牛云 AI 推理",
+    "qwen-cli": "Qwen CLI",
     "qwenlm": "QwenLM",
+    "redpill": "RedPill",
     "silicon": "硅基流动",
     "stepfun": "阶跃星辰",
     "tencent-cloud-ti": "腾讯云 TI",
@@ -2078,8 +2083,7 @@
     "xirang": "天翼云息壤",
     "yi": "零一万物",
     "zhinao": "360 智脑",
-    "zhipu": "BigModel",
-    "aionly": "AIONLY"
+    "zhipu": "BigModel"
   },
   "restore": {
     "confirm": {
@@ -2562,10 +2566,9 @@
       "add_parameter": "添加参数",
       "basic_info": "基本信息",
       "builtin": "内置",
+      "component_description": "组件描述",
       "component_not_found": "组件未找到",
       "default_value": "默认值",
-      "description": "管理内置组件的配置和使用规则",
-      "description": "组件描述",
       "enabled": "启用",
       "example": "示例",
       "export": "导出配置",
@@ -3411,6 +3414,7 @@
       "longRunningTooltip": "启用后，服务器支持长时间任务，接收到进度通知时会重置超时计时器，并延长最大超时时间至10分钟",
       "missingDependencies": "缺失，请安装它以继续",
       "more": {
+        "aionly": "AIONLY",
         "awesome": "精选的 MCP 服务器列表",
         "composio": "Composio MCP 开发工具",
         "glama": "Glama MCP 服务器目录",
@@ -3420,9 +3424,8 @@
         "official": "官方 MCP 服务器集合",
         "pulsemcp": "Pulse MCP 服务器",
         "smithery": "Smithery MCP 工具",
-        "zhipu": "BigModel",
-    "aionly": "AIONLY"
-  },
+        "zhipu": "BigModel"
+      },
       "name": "名称",
       "newServer": "MCP 服务器",
       "noDescriptionAvailable": "暂无描述",
@@ -4441,4 +4444,3 @@
     "visualization": "可视化"
   }
 }
-
