@@ -12,7 +12,7 @@ import AnthropicSettings from '@renderer/pages/settings/ProviderSettings/Anthrop
 import { ModelList } from '@renderer/pages/settings/ProviderSettings/ModelList'
 import { checkApi } from '@renderer/services/ApiService'
 import { isProviderSupportAuth } from '@renderer/services/ProviderService'
-import { useAppDispatch } from '@renderer/store'
+import { useAppDispatch, useAppSelector } from '@renderer/store'
 import { updateWebSearchProvider } from '@renderer/store/websearch'
 import { isSystemProvider } from '@renderer/types'
 import { ApiKeyConnectivity, HealthStatus } from '@renderer/types/healthCheck'
@@ -60,16 +60,47 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   const { provider, updateProvider, models } = useProvider(providerId)
   const allProviders = useAllProviders()
   const { updateProviders } = useProviders()
-  const [apiHost, setApiHost] = useState(provider.apiHost)
   const [apiVersion, setApiVersion] = useState(provider.apiVersion)
   const { t, i18n: i18nextInstance } = useTranslation()
   const { theme } = useTheme()
   const { setTimeoutTimer } = useTimer()
   const dispatch = useAppDispatch()
+  const apiServerConfig = useAppSelector((state) => state.settings.apiServer)
+
+  const [apiKey, setApiKey] = useState(provider.apiKey)
+  const [apiHost, setApiHost] = useState(provider.apiHost)
+  const [useLocalApiServer, setUseLocalApiServer] = useState(provider.useLocalApiServer ?? false)
+
+  useEffect(() => {
+    setApiKey(provider.apiKey)
+    setApiHost(provider.apiHost)
+    setUseLocalApiServer(provider.useLocalApiServer ?? false)
+  }, [provider])
 
   const isAzureOpenAI = provider.id === 'azure-openai' || provider.type === 'azure-openai'
   const isDmxapi = provider.id === 'dmxapi'
   const isCliProvider = provider.id === 'gemini-cli' || provider.id === 'qwen-cli'
+
+  // Auto-sync for CLI providers when useLocalApiServer is true
+  useEffect(() => {
+    if (isCliProvider && useLocalApiServer) {
+      const type = provider.id === 'gemini-cli' ? 'gemini' : 'qwen'
+      const host = `http://${apiServerConfig.host}:${apiServerConfig.port}/v1/cli/${type}`
+      const key = apiServerConfig.apiKey
+
+      if (provider.apiHost !== host || provider.apiKey !== key) {
+        dispatch({
+          type: 'llm/updateProvider',
+          payload: {
+            id: provider.id,
+            apiHost: host,
+            apiKey: key,
+            useLocalApiServer: true
+          }
+        })
+      }
+    }
+  }, [isCliProvider, useLocalApiServer, apiServerConfig, provider.id, provider.apiHost, provider.apiKey, dispatch])
   const hideApiInput = ['vertexai', 'aws-bedrock'].includes(provider.id)
 
   const providerConfig = PROVIDER_URLS[provider.id]
@@ -79,7 +110,6 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
 
   const fancyProviderName = getFancyProviderName(provider)
 
-  const [localApiKey, setLocalApiKey] = useState(provider.apiKey)
   const [apiKeyConnectivity, setApiKeyConnectivity] = useState<ApiKeyConnectivity>({
     status: HealthStatus.NOT_CHECKED,
     checking: false
@@ -101,19 +131,19 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   // 同步 provider.apiKey 到 localApiKey
   // 重置连通性检查状态
   useEffect(() => {
-    setLocalApiKey(provider.apiKey)
+    setApiKey(provider.apiKey)
     setApiKeyConnectivity({ status: HealthStatus.NOT_CHECKED })
   }, [provider.apiKey])
 
   // 同步 localApiKey 到 provider.apiKey（防抖）
   useEffect(() => {
-    if (localApiKey !== provider.apiKey) {
-      debouncedUpdateApiKey(localApiKey)
+    if (apiKey !== provider.apiKey) {
+      debouncedUpdateApiKey(apiKey)
     }
 
     // 卸载时取消任何待执行的更新
     return () => debouncedUpdateApiKey.cancel()
-  }, [localApiKey, provider.apiKey, debouncedUpdateApiKey])
+  }, [apiKey, provider.apiKey, debouncedUpdateApiKey])
 
   const isApiKeyConnectable = useMemo(() => {
     return apiKeyConnectivity.status === 'success'
@@ -134,6 +164,10 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
     [allProviders, updateProviders]
   )
 
+  const onUpdateApiKey = () => {
+    debouncedUpdateApiKey.flush()
+  }
+
   const onUpdateApiHost = () => {
     if (apiHost.trim()) {
       updateProvider({ apiHost })
@@ -153,7 +187,7 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
 
   const onCheckApi = async () => {
     // 如果存在多个密钥，直接打开管理窗口
-    if (provider.apiKey.includes(',')) {
+    if (apiKey.includes(',')) {
       await openApiKeyList()
       return
     }
@@ -177,7 +211,7 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
 
     try {
       setApiKeyConnectivity((prev) => ({ ...prev, checking: true, status: HealthStatus.NOT_CHECKED }))
-      await checkApi({ ...provider, apiHost }, model)
+      await checkApi({ ...provider, apiHost, apiKey }, model)
 
       window.toast.success({
         timeout: 2000,
@@ -317,13 +351,38 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
             )}
           </SettingSubtitle>
           <Space.Compact style={{ width: '100%', marginTop: 5 }}>
+            {isCliProvider && (
+              <SettingHelpTextRow style={{ marginBottom: 10, marginTop: -5 }}>
+                <HStack>
+                  <Switch
+                    size="small"
+                    checked={useLocalApiServer}
+                    onChange={(checked) => {
+                      setUseLocalApiServer(checked)
+                      updateProvider({ useLocalApiServer: checked })
+                      if (checked) {
+                        const type = provider.id === 'gemini-cli' ? 'gemini' : 'qwen'
+                        const host = `http://${apiServerConfig.host}:${apiServerConfig.port}/v1/cli/${type}`
+                        const key = apiServerConfig.apiKey
+                        updateProvider({ apiHost: host, apiKey: key, useLocalApiServer: true })
+                      }
+                    }}
+                  />
+                  <span style={{ marginLeft: 8, fontSize: 12 }}>
+                    {i18nextInstance.language?.toLowerCase().startsWith('zh')
+                      ? '使用本地 API 服务器配置 (推荐)'
+                      : 'Use Local API Server Configuration (Recommended)'}
+                  </span>
+                </HStack>
+              </SettingHelpTextRow>
+            )}
             <Input.Password
-              value={localApiKey}
-              placeholder={t('settings.provider.api_key.label')}
-              onChange={(e) => setLocalApiKey(e.target.value)}
-              spellCheck={false}
+              value={apiKey}
+              placeholder={t('settings.provider.api_key.placeholder')}
+              onChange={(e) => setApiKey(e.target.value)}
+              onBlur={onUpdateApiKey}
+              disabled={isCliProvider && useLocalApiServer}
               autoFocus={provider.enabled && provider.apiKey === '' && !isProviderSupportAuth(provider)}
-              disabled={provider.id === 'copilot'}
               suffix={renderStatusIndicator()}
             />
             <Button
@@ -372,6 +431,7 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
                   placeholder={isCliProvider ? configedApiHost : t('settings.provider.api_host')}
                   onChange={(e) => setApiHost(e.target.value)}
                   onBlur={onUpdateApiHost}
+                  disabled={isCliProvider && useLocalApiServer}
                 />
                 {!isEmpty(configedApiHost) && apiHost !== configedApiHost && (
                   <Button danger onClick={onReset}>
