@@ -15,22 +15,38 @@ export class ApiServer {
       return
     }
 
-    // Load config
-    const { port, host, apiKey } = await config.load()
+    try {
+      // Load config
+      const { port, host, apiKey } = await config.load()
 
-    // Create server with Express app
-    this.server = createServer(app)
+      // Create server with Express app
+      this.server = createServer(app)
 
-    // Start server
-    return new Promise((resolve, reject) => {
-      this.server!.listen(port, host, () => {
-        logger.info(`API Server started at http://${host}:${port}`)
-        logger.info(`API Key: ${apiKey}`)
-        resolve()
+      // Start server
+      await new Promise<void>((resolve, reject) => {
+        this.server!.listen(port, host, () => {
+          logger.info(`API Server started at http://${host}:${port}`)
+          logger.info(`API Key: ${apiKey}`)
+          resolve()
+        })
+
+        this.server!.on('error', (error) => {
+          // Clean up on error
+          if (this.server) {
+            this.server.close()
+            this.server = null
+          }
+          reject(error)
+        })
       })
-
-      this.server!.on('error', reject)
-    })
+    } catch (error) {
+      // Ensure server is cleaned up on any error
+      if (this.server) {
+        this.server.close()
+        this.server = null
+      }
+      throw error
+    }
   }
 
   async stop(): Promise<void> {
