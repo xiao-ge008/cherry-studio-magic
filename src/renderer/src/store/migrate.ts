@@ -2555,6 +2555,17 @@ const migrateConfig = {
       logger.error('migrate 158 error', error as Error)
       return state
     }
+  },
+  '159': (state: RootState) => {
+    try {
+      // Add Gemini CLI and Qwen CLI providers
+      addProvider(state, 'gemini-cli')
+      addProvider(state, 'qwen-cli')
+      return state
+    } catch (error) {
+      logger.error('migrate 159 error', error as Error)
+      return state
+    }
   }
 }
 
