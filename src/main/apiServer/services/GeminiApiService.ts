@@ -113,10 +113,10 @@ export class GeminiApiService {
     return path.join(os.homedir(), CREDENTIALS_DIR, CREDENTIALS_FILE)
   }
 
-  private async initializeAuth(): Promise<void> {
+  private async initializeAuth(forceReload = false): Promise<void> {
     // If we already have an access token, assume it's still valid
     // (The Gemini CLI manages token refresh separately)
-    if (this.authClient.credentials.access_token) {
+    if (!forceReload && this.authClient.credentials.access_token) {
       return
     }
 
@@ -227,7 +227,7 @@ export class GeminiApiService {
     return discovered
   }
 
-  private async callApi(method: string, body: any): Promise<any> {
+  private async callApi(method: string, body: any, isRetry = false): Promise<any> {
     await this.initializeAuth()
 
     const accessToken = this.authClient.credentials.access_token
@@ -246,8 +246,21 @@ export class GeminiApiService {
       })
       return res.data
     } catch (error: any) {
+      const status = error.response?.status
+      if (status === 401 && !isRetry) {
+        logger.warn('[GeminiApiService] 401 Unauthorized, trying to reload credentials from file...')
+        await this.initializeAuth(true)
+        return this.callApi(method, body, true)
+      }
+
+      if (status === 401) {
+        throw new Error(
+          'Gemini API authentication failed (401). The access token has expired. Please run "gemini login" in your terminal to refresh your credentials.'
+        )
+      }
+
       throw new Error(
-        `Upstream Gemini API error (status ${error.response?.status}): ${JSON.stringify(error.response?.data || error.message)}`
+        `Upstream Gemini API error (status ${status}): ${JSON.stringify(error.response?.data || error.message)}`
       )
     }
   }
@@ -284,12 +297,29 @@ export class GeminiApiService {
       const status = error?.response?.status
       logger.error(`[GeminiApiService] Error during stream ${method}:`, status, error?.message)
 
-      // 400/401 – refresh auth and retry once
-      if ((status === 400 || status === 401) && !isRetry) {
-        logger.info('[GeminiApiService] 400/401 during stream, retrying once...')
+      // 401 – reload credentials and retry once
+      if (status === 401 && !isRetry) {
+        logger.warn('[GeminiApiService] 401 during stream, reloading credentials and retrying...')
+        await this.initializeAuth(true)
         yield* this.streamApi(method, body, true, retryCount)
         return
       }
+
+      if (status === 401) {
+        throw new Error(
+          'Gemini API authentication failed (401). The access token has expired. Please run "gemini login" in your terminal to refresh your credentials.'
+        )
+      }
+
+      // 400 - Bad Request (often invalid argument or project issue)
+      if (status === 400) {
+        // Sometimes 400 can be transient or auth related in weird ways, but usually it's fatal.
+        // We won't retry 400 blindly unless we suspect it's auth related, but we handled 401 above.
+        // Just throw to avoid infinite loops.
+        throw new Error(`Upstream Gemini API error (400): ${JSON.stringify(error.response?.data || error.message)}`)
+      }
+
+      // 429 – exponential backoff retries
 
       // 429 – exponential backoff retries
       if (status === 429 && retryCount < maxRetries) {
