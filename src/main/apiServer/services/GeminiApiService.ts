@@ -4,6 +4,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable } from 'node:stream'
 
+import axios from 'axios'
 import { OAuth2Client } from 'google-auth-library'
 
 import { loggerService } from '../../services/LoggerService'
@@ -229,19 +230,26 @@ export class GeminiApiService {
   private async callApi(method: string, body: any): Promise<any> {
     await this.initializeAuth()
 
-    const requestOptions: any = {
-      url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      responseType: 'json',
-      body: JSON.stringify(body)
+    const accessToken = this.authClient.credentials.access_token
+    if (!accessToken) {
+      throw new Error('No access token available')
     }
 
-    const res = await this.authClient.request<any>(requestOptions)
-    if (res.status !== 200) {
-      throw new Error(`Upstream Gemini API error (status ${res.status}): ${JSON.stringify(res.data)}`)
+    const url = `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`
+
+    try {
+      const res = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+      return res.data
+    } catch (error: any) {
+      throw new Error(
+        `Upstream Gemini API error (status ${error.response?.status}): ${JSON.stringify(error.response?.data || error.message)}`
+      )
     }
-    return res.data
   }
 
   private async *streamApi(
@@ -255,25 +263,23 @@ export class GeminiApiService {
 
     try {
       await this.initializeAuth()
-      const requestOptions: any = {
-        url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
-        method: 'POST',
+      const accessToken = this.authClient.credentials.access_token
+      if (!accessToken) {
+        throw new Error('No access token available')
+      }
+
+      const url = `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`
+
+      const res = await axios.post(url, body, {
         params: { alt: 'sse' },
-        headers: { 'Content-Type': 'application/json' },
-        responseType: 'stream',
-        body: JSON.stringify(body)
-      }
-      const res = await this.authClient.request<Readable>(requestOptions)
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        responseType: 'stream'
+      })
 
-      if (res.status !== 200) {
-        let errorBody = ''
-        for await (const chunk of res.data!) {
-          errorBody += chunk.toString()
-        }
-        throw new Error(`Upstream Gemini streaming error (status ${res.status}): ${errorBody}`)
-      }
-
-      yield* this.parseSSEStream(res.data!)
+      yield* this.parseSSEStream(res.data)
     } catch (error: any) {
       const status = error?.response?.status
       logger.error(`[GeminiApiService] Error during stream ${method}:`, status, error?.message)
