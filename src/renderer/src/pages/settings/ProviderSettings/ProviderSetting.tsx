@@ -69,12 +69,14 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
 
   const [apiKey, setApiKey] = useState(provider.apiKey)
   const [apiHost, setApiHost] = useState(provider.apiHost)
-  const [useLocalApiServer, setUseLocalApiServer] = useState(provider.useLocalApiServer ?? false)
+  const [useLocalApiServer, setUseLocalApiServer] = useState(
+    provider.useLocalApiServer ?? (provider.id === 'gemini-cli' || provider.id === 'qwen-cli')
+  )
 
   useEffect(() => {
     setApiKey(provider.apiKey)
     setApiHost(provider.apiHost)
-    setUseLocalApiServer(provider.useLocalApiServer ?? false)
+    setUseLocalApiServer(provider.useLocalApiServer ?? (provider.id === 'gemini-cli' || provider.id === 'qwen-cli'))
   }, [provider])
 
   const isAzureOpenAI = provider.id === 'azure-openai' || provider.type === 'azure-openai'
@@ -350,35 +352,36 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
               </Tooltip>
             )}
           </SettingSubtitle>
+
+          {isCliProvider && (
+            <SettingHelpTextRow style={{ marginBottom: 5, marginTop: 5 }}>
+              <HStack>
+                <Switch
+                  size="small"
+                  checked={useLocalApiServer}
+                  onChange={(checked) => {
+                    setUseLocalApiServer(checked)
+                    updateProvider({ useLocalApiServer: checked })
+                    if (checked) {
+                      const type = provider.id === 'gemini-cli' ? 'gemini' : 'qwen'
+                      const host = `http://${apiServerConfig.host}:${apiServerConfig.port}/v1/cli/${type}`
+                      const key = apiServerConfig.apiKey
+                      updateProvider({ apiHost: host, apiKey: key, useLocalApiServer: true })
+                    }
+                  }}
+                />
+                <span style={{ marginLeft: 8, fontSize: 12 }}>
+                  {i18nextInstance.language?.toLowerCase().startsWith('zh')
+                    ? '使用本地 API 服务器配置 (推荐)'
+                    : 'Use Local API Server Configuration (Recommended)'}
+                </span>
+              </HStack>
+            </SettingHelpTextRow>
+          )}
           <Space.Compact style={{ width: '100%', marginTop: 5 }}>
-            {isCliProvider && (
-              <SettingHelpTextRow style={{ marginBottom: 10, marginTop: -5 }}>
-                <HStack>
-                  <Switch
-                    size="small"
-                    checked={useLocalApiServer}
-                    onChange={(checked) => {
-                      setUseLocalApiServer(checked)
-                      updateProvider({ useLocalApiServer: checked })
-                      if (checked) {
-                        const type = provider.id === 'gemini-cli' ? 'gemini' : 'qwen'
-                        const host = `http://${apiServerConfig.host}:${apiServerConfig.port}/v1/cli/${type}`
-                        const key = apiServerConfig.apiKey
-                        updateProvider({ apiHost: host, apiKey: key, useLocalApiServer: true })
-                      }
-                    }}
-                  />
-                  <span style={{ marginLeft: 8, fontSize: 12 }}>
-                    {i18nextInstance.language?.toLowerCase().startsWith('zh')
-                      ? '使用本地 API 服务器配置 (推荐)'
-                      : 'Use Local API Server Configuration (Recommended)'}
-                  </span>
-                </HStack>
-              </SettingHelpTextRow>
-            )}
             <Input.Password
               value={apiKey}
-              placeholder={t('settings.provider.api_key.placeholder')}
+              placeholder={t('settings.provider.api_key.label')}
               onChange={(e) => setApiKey(e.target.value)}
               onBlur={onUpdateApiKey}
               disabled={isCliProvider && useLocalApiServer}
@@ -533,7 +536,7 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
       {provider.id === 'copilot' && <GithubCopilotSettings providerId={provider.id} />}
       {provider.id === 'aws-bedrock' && <AwsBedrockSettings />}
       {provider.id === 'vertexai' && <VertexAISettings providerId={provider.id} />}
-      <ModelList providerId={provider.id} />
+      ;<ModelList providerId={provider.id} />
     </SettingContainer>
   )
 }
