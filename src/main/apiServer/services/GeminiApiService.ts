@@ -109,6 +109,12 @@ export class GeminiApiService {
     this.projectId = process.env.GEMINI_PROJECT_ID || 'default'
   }
 
+  private getTokenSummary(token?: string | null): string {
+    if (!token) return 'null'
+    if (token.length < 10) return '***'
+    return `${token.substring(0, 4)}...${token.substring(token.length - 4)}`
+  }
+
   private getCredentialsPath(): string {
     return path.join(os.homedir(), CREDENTIALS_DIR, CREDENTIALS_FILE)
   }
@@ -131,7 +137,7 @@ export class GeminiApiService {
       }
 
       this.authClient.setCredentials(credentials)
-      logger.info('Loaded Gemini OAuth credentials from file')
+      logger.info(`Loaded Gemini OAuth credentials from file. Token: ${this.getTokenSummary(credentials.access_token)}`)
 
       // Log if refresh_token is missing (informational only)
       if (!credentials.refresh_token) {
@@ -238,6 +244,7 @@ export class GeminiApiService {
     const url = `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`
 
     try {
+      // logger.debug(`[GeminiApiService] callApi ${method} with token ${this.getTokenSummary(accessToken)}`)
       const res = await axios.post(url, body, {
         headers: {
           'Content-Type': 'application/json',
@@ -282,6 +289,8 @@ export class GeminiApiService {
       }
 
       const url = `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`
+
+      logger.debug(`[GeminiApiService] streamApi ${method} with token ${this.getTokenSummary(accessToken)}`)
 
       const res = await axios.post(url, body, {
         params: { alt: 'sse' },
