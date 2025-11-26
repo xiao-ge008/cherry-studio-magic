@@ -135,8 +135,6 @@ export class QwenApiService {
       firstMessageContent: response.data?.choices?.[0]?.message?.content?.substring(0, 100)
     })
 
-    logger.debug('[QwenApiService] Full response data:', JSON.stringify(response.data, null, 2))
-
     return response.data
   }
 
@@ -173,8 +171,6 @@ export class QwenApiService {
       const buffer_chunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       const chunkStr = buffer_chunk.toString('utf8')
 
-      // logger.debug('[QwenApiService] Raw chunk', rawChunkCount, 'length:', chunkStr.length)
-
       buffer += chunkStr
       let newlineIndex: number
 
@@ -186,26 +182,13 @@ export class QwenApiService {
           continue
         }
 
-        logger.info(
-          '[QwenApiService] Processing line length:',
-          line.length,
-          'starts with data:',
-          line.startsWith('data:')
-        )
-
         if (!line.startsWith('data:')) {
-          logger.info(
-            '[QwenApiService] Line does not start with "data:", skipping. Line preview:',
-            line.substring(0, 50)
-          )
           continue
         }
 
         const payload = line.slice(5).trim()
-        logger.info('[QwenApiService] Extracted payload length:', payload.length, 'is [DONE]:', payload === '[DONE]')
 
         if (!payload) {
-          logger.info('[QwenApiService] Empty payload after "data:", skipping')
           continue
         }
         if (payload === '[DONE]') {
@@ -216,7 +199,6 @@ export class QwenApiService {
         try {
           const json = JSON.parse(payload)
           yieldCount++
-          logger.info('[QwenApiService] Successfully parsed and yielding chunk', yieldCount)
           yield json
         } catch (error) {
           logger.warn('[QwenApiService] Failed to parse stream chunk:', {
