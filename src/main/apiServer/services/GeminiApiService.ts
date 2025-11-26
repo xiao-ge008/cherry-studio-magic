@@ -326,7 +326,7 @@ export class GeminiApiService {
         try {
           yield JSON.parse(raw)
         } catch (e) {
-          logger.error('[GeminiApiService] Failed to parse JSON chunk from stream:', raw)
+          logger.error('[GeminiApiService] Failed to parse JSON chunk from stream:', { raw })
         }
       }
     }
@@ -336,7 +336,7 @@ export class GeminiApiService {
       try {
         yield JSON.parse(raw)
       } catch (e) {
-        logger.error('[GeminiApiService] Failed to parse final JSON chunk from stream:', raw)
+        logger.error('[GeminiApiService] Failed to parse final JSON chunk from stream:', { raw })
       }
     }
   }

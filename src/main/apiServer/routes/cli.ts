@@ -1,5 +1,5 @@
 import type { Provider } from '@types'
-import express, { Request, Response } from 'express'
+import express from 'express'
 import { v4 as uuidv4 } from 'uuid'
 
 import { loggerService } from '../../services/LoggerService'
@@ -16,202 +16,6 @@ interface ChatCompletionRequest {
   messages: { role: string; content: string }[]
   stream?: boolean
   temperature?: number
-}
-
-// Helper to construct prompt from messages
-// Simple concatenation for now, or just take the last user message
-function constructPrompt(messages: { role: string; content: string }[]): string {
-  // If the last message is from user, use it.
-  // For better context, we might want to format the whole history.
-  // But CLI usually takes a single prompt.
-  // Let's try to combine them or just use the last one.
-  // Strategy: Combine all messages into a single string with role prefixes.
-  return messages.map((m) => `${m.role}: ${m.content}`).join('\n\n')
-}
-
-async function handleCliRequest(cliName: 'gemini' | 'qwen', req: Request, res: Response) {
-  try {
-    const request: ChatCompletionRequest = req.body
-    let { messages, stream } = request
-
-    if (!messages || messages.length === 0) {
-      return res.status(400).json({
-        error: {
-          message: 'Messages are required',
-          type: 'invalid_request_error',
-          code: 'missing_messages'
-        }
-      })
-    }
-
-    // Apply per-provider CLI system prompt (configured in provider settings) if available.
-    // This mirrors AIClient-2-API's behaviour of prepending a base system prompt.
-    if (cliName === 'gemini' || cliName === 'qwen') {
-      try {
-        const providers = await reduxService.select<Provider[]>('state.llm.providers')
-        if (providers && Array.isArray(providers)) {
-          const providerId = cliName === 'gemini' ? 'gemini-cli' : 'qwen-cli'
-          const cliProvider = providers.find((p) => p.id === providerId)
-          const cliSystemPrompt = cliProvider?.cliSystemPrompt?.trim()
-
-          if (cliSystemPrompt) {
-            messages = [{ role: 'system', content: cliSystemPrompt }, ...messages]
-          }
-        }
-      } catch (error: any) {
-        logger.debug('Failed to apply CLI system prompt from Redux store (non-fatal):', error)
-      }
-    }
-
-    const prompt = constructPrompt(messages)
-    // Use the last user message as the main prompt if we want to be simple,
-    // but passing the whole conversation is better if the CLI supports context.
-    // Since these are "headless" CLIs, they might treat the input as a single prompt.
-    // Let's stick to the constructed prompt.
-
-    // Arguments for the CLI
-    // We use --output-format json (or stream-json if supported)
-    // Note: Qwen docs didn't explicitly confirm stream-json, but we assume it exists as it's a fork.
-    // If stream is requested, we try stream-json.
-
-    const outputFormat = stream ? 'stream-json' : 'json'
-    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--output-format', outputFormat]
-
-    // Add model flag if specified and not default
-    // The CLI might have its own default.
-    // if (request.model && !request.model.includes('cli')) {
-    //   args.push('-m', request.model)
-    // }
-
-    if (stream) {
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-
-      const streamId = uuidv4()
-
-      cliService.stream(
-        {
-          command: cliName,
-          args
-        },
-        {
-          onData: (data) => {
-            // The CLI returns JSON lines for events
-            const lines = data.split('\n').filter((line) => line.trim())
-            for (const line of lines) {
-              try {
-                const event = JSON.parse(line)
-
-                // Transform CLI event to OpenAI chunk
-                if (event.type === 'message' && event.delta) {
-                  const chunk = {
-                    id: streamId,
-                    object: 'chat.completion.chunk',
-                    created: Date.now(),
-                    model: request.model || cliName,
-                    choices: [
-                      {
-                        index: 0,
-                        delta: { content: event.content },
-                        finish_reason: null
-                      }
-                    ]
-                  }
-                  res.write(`data: ${JSON.stringify(chunk)}\n\n`)
-                } else if (event.type === 'result') {
-                  const chunk = {
-                    id: streamId,
-                    object: 'chat.completion.chunk',
-                    created: Date.now(),
-                    model: request.model || cliName,
-                    choices: [
-                      {
-                        index: 0,
-                        delta: {},
-                        finish_reason: 'stop'
-                      }
-                    ]
-                  }
-                  res.write(`data: ${JSON.stringify(chunk)}\n\n`)
-                  res.write('data: [DONE]\n\n')
-                }
-              } catch (e) {
-                // If not JSON, maybe raw text? Ignore or log.
-                logger.debug('CLI stream non-JSON line (ignored):', line)
-              }
-            }
-          },
-          onError: (error) => {
-            // Gemini/Qwen CLI write a lot of diagnostic information to stderr
-            // (e.g. ImportProcessor warnings, cached credentials, retry logs).
-            // These are not fatal errors for the HTTP request, so we log them
-            // as debug instead of error to avoid confusing noise.
-            logger.debug(`${cliName} CLI stderr:`, error)
-            // We can't easily send a JSON error if headers are sent.
-            // Just end stream.
-          },
-          onDone: () => {
-            res.end()
-          }
-        }
-      )
-    } else {
-      // Non-streaming
-      const output = await cliService.execute({
-        command: cliName,
-        args
-      })
-
-      // Parse JSON output
-      try {
-        const result = JSON.parse(output)
-
-        // Transform to OpenAI format
-        const response = {
-          id: uuidv4(),
-          object: 'chat.completion',
-          created: Date.now(),
-          model: request.model || cliName,
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: 'assistant',
-                content: result.response
-              },
-              finish_reason: 'stop'
-            }
-          ],
-          usage: {
-            prompt_tokens: result.stats?.models?.[Object.keys(result.stats.models)[0]]?.tokens?.prompt || 0,
-            completion_tokens: result.stats?.models?.[Object.keys(result.stats.models)[0]]?.tokens?.candidates || 0,
-            total_tokens: result.stats?.models?.[Object.keys(result.stats.models)[0]]?.tokens?.total || 0
-          }
-        }
-
-        res.json(response)
-      } catch (e) {
-        logger.error('Failed to parse CLI output:', output)
-        res.status(500).json({
-          error: {
-            message: 'Failed to parse CLI response',
-            type: 'server_error',
-            code: 'parse_error'
-          }
-        })
-      }
-    }
-  } catch (error: any) {
-    logger.error(`${cliName} CLI error:`, error)
-    res.status(500).json({
-      error: {
-        message: error.message || 'Internal server error',
-        type: 'server_error',
-        code: 'internal_error'
-      }
-    })
-  }
 }
 
 function buildGeminiRequestFromMessages(messages: { role: string; content: string }[]): GeminiGenerateRequest {
@@ -272,7 +76,7 @@ router.post('/gemini/chat/completions', async (req, res) => {
         }
       }
     } catch (error: any) {
-      logger.debug('Failed to apply Gemini CLI system prompt from Redux store (non-fatal):', error)
+      logger.debug('Failed to apply Gemini CLI system prompt from Redux store (non-fatal):', { error })
     }
 
     const geminiRequest = buildGeminiRequestFromMessages(messages)
@@ -331,7 +135,7 @@ router.post('/gemini/chat/completions', async (req, res) => {
         res.write(`data: ${JSON.stringify(endChunk)}\n\n`)
         res.write('data: [DONE]\n\n')
       } catch (error: any) {
-        logger.error('Gemini API streaming error:', error)
+        logger.error('Gemini API streaming error:', { error })
         if (!res.headersSent) {
           return res.status(500).json({
             error: {
@@ -346,6 +150,7 @@ router.post('/gemini/chat/completions', async (req, res) => {
           res.end()
         }
       }
+      return
     } else {
       try {
         const result = await geminiApiService.generateContent(modelId, geminiRequest)
@@ -379,7 +184,7 @@ router.post('/gemini/chat/completions', async (req, res) => {
 
         return res.json(response)
       } catch (error: any) {
-        logger.error('Gemini API error:', error)
+        logger.error('Gemini API error:', { error })
         return res.status(500).json({
           error: {
             message: error?.message || 'Gemini API error',
@@ -390,7 +195,7 @@ router.post('/gemini/chat/completions', async (req, res) => {
       }
     }
   } catch (error: any) {
-    logger.error('Gemini API chat error:', error)
+    logger.error('Gemini API chat error:', { error })
     return res.status(500).json({
       error: {
         message: error?.message || 'Internal server error',
@@ -437,7 +242,7 @@ router.post('/qwen/chat/completions', async (req, res) => {
         }
       }
     } catch (error: any) {
-      logger.debug('Failed to apply Qwen CLI system prompt from Redux store (non-fatal):', error)
+      logger.debug('Failed to apply Qwen CLI system prompt from Redux store (non-fatal):', { error })
     }
 
     const qwenRequest: QwenChatRequestBody = {
@@ -454,17 +259,17 @@ router.post('/qwen/chat/completions', async (req, res) => {
         res.setHeader('Connection', 'keep-alive')
 
         const streamId = uuidv4()
-        logger.info('[Qwen stream] Starting stream, ID:', streamId)
+        logger.info('[Qwen stream] Starting stream, ID:', { streamId })
 
         let chunkCount = 0
         let totalTextLength = 0
 
         for await (const chunk of qwenApiService.generateContentStream(qwenRequest)) {
           chunkCount++
-          logger.debug('[Qwen stream] Received chunk', chunkCount, ':', JSON.stringify(chunk))
+          logger.debug('[Qwen stream] Received chunk', { chunkCount, chunk: JSON.stringify(chunk) })
 
           if (!chunk?.choices || !chunk.choices[0]) {
-            logger.debug('[Qwen stream] Chunk', chunkCount, 'has no choices, skipping')
+            logger.debug('[Qwen stream] Chunk', { chunkCount, message: 'has no choices, skipping' })
             continue
           }
 
@@ -491,15 +296,18 @@ router.post('/qwen/chat/completions', async (req, res) => {
           }
 
           if (!deltaText) {
-            logger.debug('[Qwen stream] Chunk', chunkCount, 'has no text content, skipping')
+            logger.debug('[Qwen stream] Chunk', { chunkCount, message: 'has no text content, skipping' })
             continue
           }
 
           totalTextLength += deltaText.length
-          logger.debug('[Qwen stream] Chunk', chunkCount, 'text:', {
-            length: deltaText.length,
-            preview: deltaText.substring(0, 50),
-            totalSoFar: totalTextLength
+          logger.debug('[Qwen stream] Chunk', {
+            chunkCount,
+            text: {
+              length: deltaText.length,
+              preview: deltaText.substring(0, 50),
+              totalSoFar: totalTextLength
+            }
           })
 
           const sseChunk = {
@@ -541,7 +349,7 @@ router.post('/qwen/chat/completions', async (req, res) => {
         res.write(`data: ${JSON.stringify(endChunk)}\n\n`)
         res.write('data: [DONE]\n\n')
       } catch (error: any) {
-        logger.error('Qwen API streaming error:', error)
+        logger.error('Qwen API streaming error:', { error })
         return res.status(500).json({
           error: {
             message: error?.message || 'Qwen streaming error',
@@ -554,12 +362,13 @@ router.post('/qwen/chat/completions', async (req, res) => {
           res.end()
         }
       }
+      return
     } else {
       try {
         const result = await qwenApiService.generateContent(qwenRequest)
 
         // 添加详细的调试日志
-        logger.debug('[Qwen non-stream] Raw API response:', JSON.stringify(result, null, 2))
+        logger.debug('[Qwen non-stream] Raw API response:', { result: JSON.stringify(result, null, 2) })
 
         const choice = result?.choices?.[0]
         const text = choice?.message?.content || ''
@@ -584,11 +393,11 @@ router.post('/qwen/chat/completions', async (req, res) => {
           usage: result?.usage || undefined
         }
 
-        logger.debug('[Qwen non-stream] Final response:', JSON.stringify(response, null, 2))
+        logger.debug('[Qwen non-stream] Final response:', { response: JSON.stringify(response, null, 2) })
 
         return res.json(response)
       } catch (error: any) {
-        logger.error('Qwen API error:', error)
+        logger.error('Qwen API error:', { error })
         return res.status(500).json({
           error: {
             message: error?.message || 'Qwen API error',
@@ -599,7 +408,7 @@ router.post('/qwen/chat/completions', async (req, res) => {
       }
     }
   } catch (error: any) {
-    logger.error('Qwen API chat error:', error)
+    logger.error('Qwen API chat error:', { error })
     return res.status(500).json({
       error: {
         message: error?.message || 'Internal server error',
@@ -630,9 +439,9 @@ router.get('/:cliName/models', async (req, res) => {
       }))
     }
 
-    res.json(response)
+    return res.json(response)
   } catch (error: any) {
-    res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: error.message })
   }
 })
 
