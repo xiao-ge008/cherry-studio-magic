@@ -639,7 +639,8 @@ export const SYSTEM_PROVIDERS_CONFIG: Record<SystemProviderId, SystemProvider> =
       }
     ],
     isSystem: true,
-    enabled: false
+    enabled: false,
+    useLocalApiServer: true
   },
   'qwen-cli': {
     id: 'qwen-cli',
@@ -657,7 +658,8 @@ export const SYSTEM_PROVIDERS_CONFIG: Record<SystemProviderId, SystemProvider> =
       }
     ],
     isSystem: true,
-    enabled: false
+    enabled: false,
+    useLocalApiServer: true
   }
 } as const
 

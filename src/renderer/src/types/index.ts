@@ -271,6 +271,11 @@ export type Provider = {
    * This allows configuring a base persona/prompt per provider.
    */
   cliSystemPrompt?: string
+  /**
+   * For CLI providers: if true, automatically sync API server URL and API key
+   * from the local API server configuration instead of using manually configured values.
+   */
+  useLocalApiServer?: boolean
 }
 
 export const SystemProviderIds = {
