@@ -1,9 +1,10 @@
-import { OAuth2Client } from 'google-auth-library'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable } from 'node:stream'
+
+import { OAuth2Client } from 'google-auth-library'
 
 import { loggerService } from '../../services/LoggerService'
 
@@ -111,8 +112,10 @@ export class GeminiApiService {
     return path.join(os.homedir(), CREDENTIALS_DIR, CREDENTIALS_FILE)
   }
 
-  private async initializeAuth(forceRefresh = false): Promise<void> {
-    if (this.authClient.credentials.access_token && !forceRefresh) {
+  private async initializeAuth(): Promise<void> {
+    // If we already have an access token, assume it's still valid
+    // (The Gemini CLI manages token refresh separately)
+    if (this.authClient.credentials.access_token) {
       return
     }
 
@@ -120,28 +123,33 @@ export class GeminiApiService {
     try {
       const raw = await fs.readFile(credPath, 'utf8')
       const credentials: any = JSON.parse(raw)
+
+      // Validate that we have an access token
+      if (!credentials.access_token) {
+        throw new Error('OAuth credentials file does not contain an access_token')
+      }
+
       this.authClient.setCredentials(credentials)
       logger.info('Loaded Gemini OAuth credentials from file')
 
-      if (forceRefresh) {
-        logger.info('Refreshing Gemini OAuth access token')
-        // google-auth-library will use refresh_token + client info from credentials
-        const { credentials: newCredentials } = await this.authClient.refreshAccessToken()
-        this.authClient.setCredentials(newCredentials)
-        await fs.writeFile(credPath, JSON.stringify(newCredentials, null, 2), 'utf8')
-        logger.info('Refreshed Gemini OAuth credentials saved to file')
+      // Log if refresh_token is missing (informational only)
+      if (!credentials.refresh_token) {
+        logger.warn('OAuth credentials file does not contain refresh_token. Tokens will not auto-refresh.')
+        logger.warn('If you encounter authentication errors, please run "gemini login" again.')
       }
     } catch (error: any) {
       logger.error('Failed to initialize Gemini OAuth credentials:', error)
       throw new Error(
-        `Failed to load Gemini OAuth credentials from ${credPath}. Please run 'gemini login' on this machine first.`
+        `Failed to load Gemini OAuth credentials from ${credPath}. ` +
+          `Please run 'gemini login' on this machine first. ` +
+          `Error: ${error.message}`
       )
     }
   }
 
   async initialize(): Promise<void> {
     if (this.initialized) return
-    await this.initializeAuth(false)
+    await this.initializeAuth()
     if (process.env.GEMINI_PROJECT_ID) {
       this.projectId = process.env.GEMINI_PROJECT_ID
       logger.info(`Using Gemini project from GEMINI_PROJECT_ID: ${this.projectId}`)
@@ -219,7 +227,7 @@ export class GeminiApiService {
   }
 
   private async callApi(method: string, body: any): Promise<any> {
-    await this.initializeAuth(false)
+    await this.initializeAuth()
 
     const requestOptions: any = {
       url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
@@ -246,7 +254,7 @@ export class GeminiApiService {
     const baseDelay = 1000
 
     try {
-      await this.initializeAuth(false)
+      await this.initializeAuth()
       const requestOptions: any = {
         url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
         method: 'POST',
@@ -272,8 +280,7 @@ export class GeminiApiService {
 
       // 400/401 – refresh auth and retry once
       if ((status === 400 || status === 401) && !isRetry) {
-        logger.info('[GeminiApiService] 400/401 during stream, refreshing auth and retrying once...')
-        await this.initializeAuth(true)
+        logger.info('[GeminiApiService] 400/401 during stream, retrying once...')
         yield* this.streamApi(method, body, true, retryCount)
         return
       }
